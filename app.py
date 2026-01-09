@@ -168,10 +168,10 @@ if page == TRANS["nav_manual"]:
 
 elif page == TRANS["nav_calc"]:
     st.sidebar.header("1. ข้อมูลถัง (Tank Dimensions)")
-    L = st.sidebar.number_input("ความยาว (cm)", value=60.0, step=1.0)
-    W = st.sidebar.number_input("ความกว้าง (cm)", value=40.0, step=1.0)
+    L = st.sidebar.number_input("ความยาว (cm)", value=170.0, step=1.0)
+    W = st.sidebar.number_input("ความกว้าง (cm)", value=80.0, step=1.0)
     H_tank = st.sidebar.number_input("ความสูงถัง (cm)", value=50.0, step=1.0)
-    water_level = st.sidebar.number_input("ระดับน้ำใช้งาน (cm)", value=35.0, step=1.0)
+    water_level = st.sidebar.number_input("ระดับน้ำในถัง (cm)", value=10, step=1.0)
     
     st.sidebar.header("2. เงื่อนไขการใช้งาน (Conditions)")
     use_chem = st.sidebar.checkbox("ใช้น้ำยาเคมี/กรด (Chemistry)", value=True, help="ลดความต้องการพลังงานลง")
@@ -269,6 +269,7 @@ elif page == TRANS["nav_calc"]:
         g1.pyplot(draw_tank(L, water_level, heads_list[:mid], "Side Wall A", True, H_tank, water_level))
 
         g2.pyplot(draw_tank(L, water_level, heads_list[mid:], "Side Wall B", True, H_tank, water_level, True))
+
 
 
 
