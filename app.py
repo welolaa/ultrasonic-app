@@ -80,7 +80,7 @@ if page == TRANS["nav_manual"]:
         "3. การติดตั้ง & Safety", 
         "4. การทดสอบ (Foil Test)",
         "5. สูตรคำนวณ",
-        "📝 ข้อมูลวิจัย (Research)"
+        "📝 ข้อมูลเพิ่มเติม (Research)"
     ])
     
     with tab0:
@@ -145,8 +145,7 @@ if page == TRANS["nav_manual"]:
         st.markdown("""
         ### 🧮 รวมสูตรคำนวณ (Formulas)
         **1. แปลงหน่วย:** $W/L = W/Gal / 3.785$
-        **2. สมการพื้นฐาน:** $P_{req} = V_{eff} \\times D_{target}$
-        **3. สูตรการคำนวณพลังงาน:** "$$\text{W/L} = \frac{\text{Total Ultrasonic Power (Watts)}}{\text{Effective Volume (Liters)}}$$
+        **2. สมการพื้นฐาน:** $P_{req} = V_{eff} \\times D_{target}$ 
         """)
 
     with tab6:
@@ -261,6 +260,7 @@ elif page == TRANS["nav_calc"]:
         g1.pyplot(draw_tank(L, water_level, heads_list[:mid], "Side Wall A", True, H_tank, water_level))
 
         g2.pyplot(draw_tank(L, water_level, heads_list[mid:], "Side Wall B", True, H_tank, water_level, True))
+
 
 
 
