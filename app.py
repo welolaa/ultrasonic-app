@@ -34,7 +34,7 @@ T = {
     "nav_manual": {"th": "📘 คู่มือและข้อมูล (Knowledge Base)", "en": "📘 Manual & Knowledge Base"},
     "nav_calc":   {"th": "📟 โปรแกรมคำนวณ (Calculator)", "en": "📟 Calculator"},
 
-    # Input Labels (หน้าคำนวณ)
+    # Input Labels
     "tank_header": {"th": "1. ข้อมูลถัง (Tank Dimensions)", "en": "1. Tank Dimensions"},
     "L": {"th": "ความยาว (cm)", "en": "Length (cm)"},
     "W": {"th": "ความกว้าง (cm)", "en": "Width (cm)"},
@@ -84,7 +84,7 @@ def t(key):
     return T[key][lang]
 
 # ==========================================
-# 3. HELPER FUNCTIONS (ฟังก์ชันคำนวณเดิม)
+# 3. HELPER FUNCTIONS
 # ==========================================
 def get_recommended_density(vol_liters, has_chem, heavy_load):
     if vol_liters <= 10: base_wl = 35.0
@@ -147,13 +147,6 @@ def draw_tank(l, h_limit, h_list, title, side=False, tank_h=0, water_h=0, off=Fa
 st.title(t("title"))
 st.caption(t("caption"))
 
-# --- ส่วนถาม Gemini ---
-with st.sidebar.expander("🤖 ถามผู้ช่วย AI (Ask Gemini)", expanded=False):
-    st.markdown("สงสัยวิธีใช้งาน? กดลิงก์ด้านล่างเพื่อถาม Gemini")
-    st.link_button("↗️ เปิด Gemini Chat", "https://gemini.google.com/app")
-    st.info("**Tip:** ก๊อปปี้คำสั่งนี้ไปถามได้เลย 👇")
-    st.code("ฉันกำลังใช้โปรแกรมออกแบบ Ultrasonic Cleaner ต้องการคำแนะนำเรื่อง [ใส่เรื่องที่คุณสงสัย] ช่วยอธิบายหน่อย", language=None)
-
 # เมนูนำทาง
 page = st.sidebar.radio(t("nav_header"), [t("nav_manual"), t("nav_calc")])
 st.sidebar.divider()
@@ -162,9 +155,8 @@ st.sidebar.divider()
 # PAGE: MANUAL
 # ==========================================
 if page == t("nav_manual"):
-    # แยกภาษาตรงนี้ เพื่อให้ใส่ข้อความยาวๆ ได้สะดวก
     if lang == "th":
-        # --- เนื้อหาภาษาไทย (คงเดิมตามที่คุณแก้มา) ---
+        # --- เนื้อหาภาษาไทย ---
         st.header("📘 องค์ความรู้และการออกแบบ (Engineering Manual)")
         tab0, tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
             "📖 คู่มือการใช้โปรแกรม (User Guide)", "1. ทฤษฎี & ความถี่", "2. มาตรฐาน W/L", 
@@ -241,7 +233,7 @@ if page == t("nav_manual"):
             """)
     
     else:
-        # --- ENGLISH MANUAL (แปลให้แล้วครับ) ---
+        # --- ENGLISH MANUAL ---
         st.header("📘 Engineering Manual & Knowledge Base")
         tab0, tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
             "📖 User Guide", "1. Theory & Freq", "2. W/L Standards", 
@@ -320,8 +312,8 @@ if page == t("nav_manual"):
 # PAGE: CALCULATOR (โปรแกรมคำนวณ)
 # ==========================================
 elif page == t("nav_calc"):
+    # --- Sidebar Inputs ---
     st.sidebar.header(t("tank_header"))
-    # ใช้ค่าเดิมของคุณ (170, 80, 50, 10)
     L = st.sidebar.number_input(t("L"), value=170.0, step=1.0)
     W = st.sidebar.number_input(t("W"), value=80.0, step=1.0)
     H_tank = st.sidebar.number_input(t("H"), value=50.0, step=1.0)
@@ -331,21 +323,25 @@ elif page == t("nav_calc"):
     use_chem = st.sidebar.checkbox(t("chem"), value=True, help=t("chem_help"))
     heavy_load = st.sidebar.checkbox(t("heavy"), value=True, help=t("heavy_help"))
     
-    st.sidebar.header(t("spec_header"))
-    col_sb1, col_sb2 = st.sidebar.columns(2)
-    with col_sb1:
-        w_board_28 = st.number_input(f"{t('w_board')} (28k)", value=120.0, step=10.0)
-        h_board_28 = st.number_input(f"{t('h_board')} (28k)", value=2, min_value=1)
-    with col_sb2:
-        w_board_40 = st.number_input(f"{t('w_board')} (40k)", value=120.0, step=10.0)
-        h_board_40 = st.number_input(f"{t('h_board')} (40k)", value=3, min_value=1)
-        
     vol = (L * W * water_level) / 1000
     rec_density = get_recommended_density(vol, use_chem, heavy_load)
-    
+
+    # --- MAIN PAGE: DESIGN & HARDWARE ---
     st.subheader(t("design_sys"))
+    
+    # ย้าย Hardware Specs มาไว้ที่หน้าหลัก (Design Page) ตามที่ขอ
+    st.markdown(f"**{t('spec_header')}**")
+    col_spec1, col_spec2 = st.columns(2)
+    with col_spec1:
+        w_board_28 = st.number_input(f"{t('w_board')} (28k)", value=120.0, step=10.0)
+        h_board_28 = st.number_input(f"{t('h_board')} (28k)", value=2, min_value=1)
+    with col_spec2:
+        w_board_40 = st.number_input(f"{t('w_board')} (40k)", value=120.0, step=10.0)
+        h_board_40 = st.number_input(f"{t('h_board')} (40k)", value=3, min_value=1)
+    
+    st.markdown("---")
+    
     mode = st.radio(t("mode_label"), [t("mode_new"), t("mode_check")], horizontal=True)
-    st.divider()
     
     n_b28, n_b40 = 0, 0
     target_density = 0.0
@@ -385,12 +381,11 @@ elif page == t("nav_calc"):
     n_h28 = int(n_b28 * h_board_28)
     n_h40 = int(n_b40 * h_board_40)
     
+    st.markdown("---")
     m1, m2, m3 = st.columns(3)
     m1.metric(t("vol"), f"{vol:.2f} L")
     m2.metric(t("p_total"), f"{real_total_w:.0f} W")
     m3.metric(t("density"), f"{actual_density:.2f} W/L", delta=f"{actual_density - target_density:.2f}")
-    
-    st.markdown("---")
     
     c_an1, c_an2 = st.columns([2, 1])
     with c_an1:
