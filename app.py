@@ -168,8 +168,8 @@ if page == TRANS["nav_manual"]:
 
 elif page == TRANS["nav_calc"]:
     st.sidebar.header("1. ข้อมูลถัง (Tank Dimensions)")
-    L = st.sidebar.number_input("ความยาว (cm)", value=170.0, step=1.0)
-    W = st.sidebar.number_input("ความกว้าง (cm)", value=80.0, step=1.0)
+    L = st.sidebar.number_input("ความยาว (cm)", value=170, step=1.0)
+    W = st.sidebar.number_input("ความกว้าง (cm)", value=80, step=1.0)
     H_tank = st.sidebar.number_input("ความสูงถัง (cm)", value=50.0, step=1.0)
     water_level = st.sidebar.number_input("ระดับน้ำในถัง (cm)", value=10, step=1.0)
     
