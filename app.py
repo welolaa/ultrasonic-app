@@ -9,7 +9,7 @@ st.set_page_config(page_title="Ultrasonic Design Master", page_icon="⚙️", la
 
 TRANS = {
     "title": "⚙️ เครื่องมือออกแบบ Ultrasonic Cleaner ",
-    "caption": "🚀 คำนวณตามมาตรฐานวิศวกรรม | 📘 ฐานข้อมูลวิจัยฉบับสมบูรณ์",
+    "caption": "🚀 คำนวณตามมาตรฐานวิศวกรรม | จัดทำเพื่อความสะดวกให้การครวจสอบ",
     "nav_calc": "📟 โปรแกรมคำนวณ (Calculator)",
     "nav_manual": "📘 คู่มือและข้อมูล (Knowledge Base)",
 }
@@ -259,3 +259,4 @@ elif page == TRANS["nav_calc"]:
         g1.pyplot(draw_tank(L, water_level, heads_list[:mid], "Side Wall A", True, H_tank, water_level))
 
         g2.pyplot(draw_tank(L, water_level, heads_list[mid:], "Side Wall B", True, H_tank, water_level, True))
+
