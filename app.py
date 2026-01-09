@@ -14,7 +14,7 @@ st.set_page_config(page_title="Ultrasonic Design Master", page_icon="⚙️", la
 st.sidebar.header("🌐 Language / ภาษา")
 lang_choice = st.sidebar.radio(
     "Select Language", 
-    ["🇹🇭 ภาษาไทย", "🇬🇧 English"], 
+    ["🇹🇭 ภาษาไทย", "English"], 
     index=0,
     label_visibility="collapsed"
 )
@@ -428,4 +428,5 @@ elif page == t("nav_calc"):
         g1, g2 = st.columns(2)
         g1.pyplot(draw_tank(L, water_level, heads_list[:mid], "Side A", True, H_tank, water_level))
         g2.pyplot(draw_tank(L, water_level, heads_list[mid:], "Side B", True, H_tank, water_level, True))
+
 
