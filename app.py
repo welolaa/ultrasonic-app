@@ -8,10 +8,10 @@ import pandas as pd
 st.set_page_config(page_title="Ultrasonic Design Master", page_icon="⚙️", layout="wide")
 
 TRANS = {
-    "title": "⚙️ เครื่องมือออกแบบ Ultrasonic Cleaner (Master Edition)",
+    "title": "⚙️ เครื่องมือออกแบบ Ultrasonic Cleaner ",
     "caption": "🚀 คำนวณตามมาตรฐานวิศวกรรม | 📘 ฐานข้อมูลวิจัยฉบับสมบูรณ์",
     "nav_calc": "📟 โปรแกรมคำนวณ (Calculator)",
-    "nav_manual": "📘 คู่มือและความรู้ (Knowledge Base)",
+    "nav_manual": "📘 คู่มือและข้อมูล (Knowledge Base)",
 }
 
 def get_recommended_density(vol_liters, has_chem, heavy_load):
@@ -257,4 +257,5 @@ elif page == TRANS["nav_calc"]:
         mid = len(heads_list)//2
         g1, g2 = st.columns(2)
         g1.pyplot(draw_tank(L, water_level, heads_list[:mid], "Side Wall A", True, H_tank, water_level))
+
         g2.pyplot(draw_tank(L, water_level, heads_list[mid:], "Side Wall B", True, H_tank, water_level, True))
