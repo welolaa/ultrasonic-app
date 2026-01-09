@@ -5,8 +5,10 @@ import math
 import random
 import pandas as pd
 
+# ตั้งค่าหน้าเว็บ
 st.set_page_config(page_title="Ultrasonic Design Master", page_icon="⚙️", layout="wide")
 
+# กำหนดข้อความหลัก (ตามที่คุณแก้ไข)
 TRANS = {
     "title": "⚙️ เครื่องมือออกแบบ Ultrasonic Cleaner ",
     "caption": "🚀 คำนวณตามมาตรฐานวิศวกรรม | จัดทำเพื่อความสะดวกในการวางแผนคร่าวๆ",
@@ -14,7 +16,9 @@ TRANS = {
     "nav_manual": "📘 คู่มือและข้อมูล (Knowledge Base)",
 }
 
+# --- Helper Functions ---
 def get_recommended_density(vol_liters, has_chem, heavy_load):
+    # กำหนดค่ามาตรฐาน W/L ตามขนาดถัง
     if vol_liters <= 10: base_wl = 35.0
     elif vol_liters <= 20: base_wl = 30.0
     elif vol_liters <= 50: base_wl = 25.0
@@ -22,8 +26,9 @@ def get_recommended_density(vol_liters, has_chem, heavy_load):
     elif vol_liters <= 190: base_wl = 10.0
     else: base_wl = 5.3 
 
-    if has_chem: base_wl *= 0.7
-    if heavy_load: base_wl *= 1.15
+    # ปรับค่าตามเงื่อนไข
+    if has_chem: base_wl *= 0.7       # มีเคมี ลดพลังงานที่ต้องการลง
+    if heavy_load: base_wl *= 1.15    # งานหนัก เพิ่มพลังงานชดเชย
     return round(base_wl, 1)
 
 def draw_tank(l, h_limit, h_list, title, side=False, tank_h=0, water_h=0, off=False):
@@ -31,45 +36,59 @@ def draw_tank(l, h_limit, h_list, title, side=False, tank_h=0, water_h=0, off=Fa
     ax.set_title(title, fontsize=10, weight='bold')
     
     if side:
+        # วาดมุมมองข้าง (Side View)
         ax.add_patch(patches.Rectangle((0,0), l, tank_h, fc='#eeeeee', ec='#444', lw=2))
         ax.add_patch(patches.Rectangle((0,0), l, water_h, fc='#b3e5fc', alpha=0.6))
         ax.axhline(y=water_h, color='#0277bd', linestyle='--', lw=1)
         area_h = water_h
     else:
+        # วาดมุมมองก้นถัง (Bottom View)
         ax.add_patch(patches.Rectangle((0,0), l, h_limit, fc='#e1f5fe', ec='#444', lw=2))
         area_h = h_limit
     
-    n=len(h_list)
-    if n>0 and area_h>0:
-        cols = math.ceil(math.sqrt(n*(l/area_h)))
-        rows = math.ceil(n/cols)
+    n = len(h_list)
+    if n > 0 and area_h > 0:
+        # คำนวณการจัดเรียงหัว (Layout Calculation)
+        cols = math.ceil(math.sqrt(n * (l / area_h)))
+        rows = math.ceil(n / cols)
         sp_x = l / (cols + 1)
         sp_y = area_h / (rows + 1)
+        
         for r in range(rows):
             for c in range(cols):
-                cnt = r*cols + c
+                cnt = r * cols + c
                 if cnt < n:
-                    fq=h_list[cnt]
+                    fq = h_list[cnt]
                     base_x = (c + 1) * sp_x
                     base_y = (r + 1) * sp_y
-                    stagger = (sp_x/2) if (r%2!=0) else 0
-                    offset_side = (sp_x/2) if off else 0
+                    stagger = (sp_x / 2) if (r % 2 != 0) else 0
+                    offset_side = (sp_x / 2) if off else 0
+                    
                     x = base_x + stagger + offset_side
-                    if x > l - (sp_x/2): x = x - l + (sp_x/2)
+                    if x > l - (sp_x / 2): x = x - l + (sp_x / 2)
                     y = base_y
-                    c_node = '#d32f2f' if fq==28 else '#1976d2'
-                    ax.add_patch(plt.Circle((x,y), 2.5, color=c_node, ec='white', alpha=0.9))
-                    ax.text(x,y, str(fq), color='white', ha='center', va='center', fontsize=7, weight='bold')
-    ax.set_xlim(-2, l+2); ax.set_ylim(-2, (tank_h if side else h_limit)+2)
+                    
+                    # สี: 28k=แดง, 40k=น้ำเงิน
+                    c_node = '#d32f2f' if fq == 28 else '#1976d2'
+                    ax.add_patch(plt.Circle((x, y), 2.5, color=c_node, ec='white', alpha=0.9))
+                    ax.text(x, y, str(fq), color='white', ha='center', va='center', fontsize=7, weight='bold')
+                    
+    ax.set_xlim(-2, l + 2)
+    ax.set_ylim(-2, (tank_h if side else h_limit) + 2)
     ax.set_aspect('equal')
     return fig
 
+# --- Main App Logic ---
 st.title(TRANS["title"])
 st.caption(TRANS["caption"])
 
+# เมนูนำทาง
 page = st.sidebar.radio("เมนูเลือกหน้า (Navigation)", [TRANS["nav_manual"], TRANS["nav_calc"]])
 st.sidebar.divider()
 
+# ==========================================
+# PAGE: MANUAL (คู่มือ)
+# ==========================================
 if page == TRANS["nav_manual"]:
     st.header("📘 องค์ความรู้และการออกแบบ (Engineering Manual)")
     
@@ -159,15 +178,19 @@ if page == TRANS["nav_manual"]:
         st.markdown("""
         **1. ใช้งานเดิม:** เดิมแช่สารเคมี 15 นาที -> ใช้ Ultrasonic ช่วยลดเวลาได้และเพิ่มความละเอียดให้การล้าง
         
-        **2. ค่าพลังงานคืออะไร:**  ค่า W/L คือตัวบอกว่า ในน้ำ 1 ลิตร มีพลังงานอยู่กี่วัตต์ เช่น 120W/5L = 24W/L
+        **2. ค่าพลังงานคืออะไร:** ค่า W/L คือตัวบอกว่า ในน้ำ 1 ลิตร มีพลังงานอยู่กี่วัตต์ เช่น 120W/5L = 24W/L
         
         **3. การใช้ปริมาณน้ำเยอะ:** น้ำ >190L ใช้เพียง 5.3 W/L ก็จะเกิด Cavitation(ฟอกอากาศ) ทั่วถึง
         
         **4. Mass Load Factor:** ทองแดงดูดซับเสียง ควรเพิ่มกำลังงานอีก **10-15%** ชดเชย
         """)
 
+# ==========================================
+# PAGE: CALCULATOR (โปรแกรมคำนวณ)
+# ==========================================
 elif page == TRANS["nav_calc"]:
     st.sidebar.header("1. ข้อมูลถัง (Tank Dimensions)")
+    # แก้ไขค่าเริ่มต้นตามที่คุณต้องการ: L=170, W=80, Level=10
     L = st.sidebar.number_input("ความยาว (cm)", value=170.0, step=1.0)
     W = st.sidebar.number_input("ความกว้าง (cm)", value=80.0, step=1.0)
     H_tank = st.sidebar.number_input("ความสูงถัง (cm)", value=50.0, step=1.0)
@@ -235,6 +258,7 @@ elif page == TRANS["nav_calc"]:
     m1.metric("💧 ปริมาตรน้ำ", f"{vol:.2f} L")
     m2.metric("⚡ กำลังไฟรวม", f"{real_total_w:.0f} W")
     m3.metric("📊 ความหนาแน่นจริง", f"{actual_density:.2f} W/L", delta=f"{actual_density - target_density:.2f} vs Target")
+    
     st.markdown("---")
     
     c_an1, c_an2 = st.columns([2, 1])
@@ -267,17 +291,4 @@ elif page == TRANS["nav_calc"]:
         mid = len(heads_list)//2
         g1, g2 = st.columns(2)
         g1.pyplot(draw_tank(L, water_level, heads_list[:mid], "Side Wall A", True, H_tank, water_level))
-
         g2.pyplot(draw_tank(L, water_level, heads_list[mid:], "Side Wall B", True, H_tank, water_level, True))
-
-
-
-
-
-
-
-
-
-
-
-
