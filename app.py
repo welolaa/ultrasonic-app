@@ -232,8 +232,11 @@ if page == t("nav_manual"):
             st.info("📂 **ข้อมูลเพิ่มเติม (Research Notes)**")
             st.markdown("""
             **1. ใช้งานเดิม:** เดิมแช่สารเคมี 15 นาที -> ใช้ Ultrasonic ช่วยลดเวลาได้และเพิ่มความละเอียดให้การล้าง
+            
             **2. ค่าพลังงานคืออะไร:** ค่า W/L คือตัวบอกว่า ในน้ำ 1 ลิตร มีพลังงานอยู่กี่วัตต์ เช่น 120W/5L = 24W/L
+            
             **3. การใช้ปริมาณน้ำเยอะ:** น้ำ >190L ใช้เพียง 5.3 W/L ก็จะเกิด Cavitation(ฟอกอากาศ) ทั่วถึง
+            
             **4. Mass Load Factor:** ทองแดงดูดซับเสียง ควรเพิ่มกำลังงานอีก **10-15%** ชดเชย
             """)
     
@@ -313,8 +316,11 @@ if page == t("nav_manual"):
             st.info("📂 **Research Notes**")
             st.markdown("""
             **1. Original Process:** Soaking in chemicals 15 mins -> Ultrasonic reduces time and increases detail cleaning.
+            
             **2. What is Power Density:** W/L tells how many Watts per 1 Liter. E.g., 120W/5L = 24W/L.
+            
             **3. Large Volume:** Water >190L needs only 5.3 W/L for total cavitation.
+            
             **4. Mass Load Factor:** Copper absorbs sound; add **10-15%** power to compensate.
             """)
 
@@ -428,5 +434,6 @@ elif page == t("nav_calc"):
         g1, g2 = st.columns(2)
         g1.pyplot(draw_tank(L, water_level, heads_list[:mid], "Side A", True, H_tank, water_level))
         g2.pyplot(draw_tank(L, water_level, heads_list[mid:], "Side B", True, H_tank, water_level, True))
+
 
 
