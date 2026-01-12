@@ -225,7 +225,7 @@ if page == t("nav_manual"):
             ### 🧮 รวมสูตรคำนวณ (Formulas)
             **1. แปลงหน่วย:** $W/L = W/Gal / 3.785$
             
-            **2. สมการพื้นฐาน:** $P_{req} = V_{eff} \\times D_{target}$ 
+            **2. สูตรการหาพลังงงานรวม:** $P_{req}(W) = V_{eff}(Liters) \\times D_{target}(W/L ที่ต้องการ)$
             """)
         with tab6:
             st.info("📂 **ข้อมูลเพิ่มเติม (Research Notes)**")
@@ -434,4 +434,5 @@ elif page == t("nav_calc"):
         g1, g2 = st.columns(2)
         g1.pyplot(draw_tank(L, water_level, heads_list[:mid], "Side A", True, H_tank, water_level))
         g2.pyplot(draw_tank(L, water_level, heads_list[mid:], "Side B", True, H_tank, water_level, True))
+
 
