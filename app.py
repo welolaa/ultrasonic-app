@@ -248,19 +248,46 @@ if page == t("nav_manual"):
             * ❌ **เสื่อมสภาพ:** ไม่มีรอยพรุนเลย หรือมีแถบเรียบ (Blind Spot)
             """)
         with tab5:
-            st.markdown("""
+            st.markdown(r"""
             ### 🧮 รวมสูตรคำนวณ (Formulas)
-            **1. แปลงหน่วย:** $W/L = W/Gal / 3.785$
-            **2. สูตรการหาพลังงงานรวม:** $P_{req}(W) = V_{eff}(Liters) \\times D_{target}(W/L ที่ต้องการ)$
+
+            #### 1. การแปลงหน่วย (Unit Conversion)
+            อ้างอิง: **1 US Gallon $\approx$ 3.785 Liters**
+            * **แปลง W/G เป็น W/L:**
+              $$ W/L = \frac{W/G}{3.785} $$
+              *ตัวอย่าง:* $5 \text{ W/G} \div 3.785 = 1.32 \text{ W/L}$
+            * **แปลง W/L เป็น W/G:**
+              $$ W/G = W/L \times 3.785 $$
+              *ตัวอย่าง:* $1.32 \text{ W/L} \times 3.785 = 4.996 \text{ W/G}$
+
+            ---
+
+            #### 2. สูตรคำนวณกำลังงานสุทธิ ($T_{final}$)
+            $$ T_{final} = P_{base} \times K_{mat} \times K_{stack} $$
+
+            **โดยที่:**
+            * **$T_{final}$ (Target Power):** กำลังอัลตราโซนิกสุทธิที่ต้องใช้
+            * **$P_{base}$:** กำลังพื้นฐานที่คำนวณจากปริมาตรน้ำ ($V_{eff} \times W/L$)
+            * **$K_{mat}$ (Material Load Factor):** ตัวประกอบภาระงานจากวัสดุ
+              * *กรณีทองแดง (ความหนาแน่น ~8.96 g/cm³):* ใช้ค่า **1.15** (เผื่อโหลด 15%)
+            * **$K_{stack}$ (Stacking Factor):** ค่าเผื่อการซ้อนทับ (ตัวแปรสำคัญ)
+
+            ---
+
+            #### 3. วิธีประเมินค่า $K_{stack}$
+            สำหรับการวางซ้อนกัน (Stacking) จะคิดค่า Loss ประมาณ **5% ต่อชั้นที่เพิ่มขึ้น**
+            $$ K_{stack} = 1 + (0.05 \times (\text{จำนวนชั้น} - 1)) $$
+
+            **📝 ตัวอย่างการคำนวณจริง:**
+            * **โจทย์:** $P_{base} = 1,200 \text{ W}$, งานทองแดง ($K_{mat} = 1.15$), วางซ้อนกัน **10 ชั้น**
+            
+            **วิธีทำ:**
+            1. **หา $K_{stack}$:** มี 10 ชั้น (ทับเพิ่มมา 9 ชั้น)
+               $$ K_{stack} = 1 + (0.05 \times 9) = 1 + 0.45 = \mathbf{1.45} \text{ (เพิ่ม 45\%)} $$
+            2. **หา $T_{final}$:**
+               $$ T_{final} = 1,200 \times 1.15 \times 1.45 = \mathbf{2,001 \text{ W}} $$
             """)
-        with tab6:
-            st.info("📂 **Stacking Research**")
-            st.markdown("""
-            **การวางซ้อนทับ (Stacking):**
-            * การวางซ้อนกันทำให้เกิด **Acoustic Shadowing (เงาเสียง)**
-            * สูตรชดเชย: เพิ่มกำลัง **5%** ต่อชั้นที่เพิ่มขึ้น ($K_{stack}$)
-            * ข้อควรระวัง: หากซ้อนเกิน 5 ชั้น ควรแบ่งล้าง หรือใช้ระบบเขย่าตะแกรง
-            """)
+    
     else:
         st.header("📘 Engineering Manual & Knowledge Base")
         # ... (English Manual content remains similiar) ...
@@ -404,3 +431,4 @@ elif page == t("nav_calc"):
         g1, g2 = st.columns(2)
         g1.pyplot(draw_tank(L, water_level, heads_list[:mid], "Side A", True, H_tank, water_level))
         g2.pyplot(draw_tank(L, water_level, heads_list[mid:], "Side B", True, H_tank, water_level, True))
+
