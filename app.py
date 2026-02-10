@@ -5,11 +5,11 @@ import math
 import random
 import pandas as pd
 
-# 1. ตั้งค่าหน้าเว็บ
+# 1. Page Configuration
 st.set_page_config(page_title="Ultrasonic Design Master", page_icon="⚙️", layout="wide")
 
 # ==========================================
-# 2. ส่วนตั้งค่าภาษา (Language Settings)
+# 2. Language Settings
 # ==========================================
 st.sidebar.header("🌐 Language / ภาษา")
 lang_choice = st.sidebar.radio(
@@ -20,7 +20,7 @@ lang_choice = st.sidebar.radio(
 )
 lang = "th" if "ไทย" in lang_choice else "en"
 
-# ฐานข้อมูลคำแปล (Dictionary)
+# Dictionary for translations
 T = {
     "title": {
         "th": "⚙️ เครื่องมือออกแบบ Ultrasonic Cleaner",
@@ -51,7 +51,7 @@ T = {
     "w_board": {"th": "W/บอร์ด", "en": "W/Board"},
     "h_board": {"th": "หัว/บอร์ด", "en": "Heads/Board"},
     
-    # --- NEW: Stacking Section ---
+    # --- Stacking Section ---
     "stack_header": {"th": "4. การจัดวางชิ้นงาน (Stacking)", "en": "4. Workpiece Stacking"},
     "n_rows": {"th": "วางเรียงกี่แถว (แนวนอน)", "en": "Number of Rows (Horizontal)"},
     "n_layers": {"th": "วางซ้อนกี่ชั้น (แนวตั้ง)", "en": "Number of Layers (Vertical)"},
@@ -109,11 +109,11 @@ def get_base_density(vol_liters, has_chem, heavy_load):
 
 def calculate_stacking_factor(rows, layers):
     # Stacking Logic:
-    # เริ่มต้นที่ 1.0 (100%)
-    # เพิ่ม 5% (0.05) ต่อชั้นที่เพิ่มขึ้น (layers - 1)
+    # Start at 1.0 (100%)
+    # Add 5% (0.05) per extra layer (layers - 1)
     k_stack = 1.0 + (0.05 * (layers - 1))
     
-    # ถ้ามีหลายแถว (Multi-row) จะเกิดการบังด้านข้าง เพิ่มอีก 5% Flat rate
+    # If multiple rows, add another 5% flat rate for side shadowing
     if rows > 1:
         k_stack += 0.05
         
@@ -123,8 +123,8 @@ def draw_tank(l, h_limit, h_list, title, side=False, tank_h=0, water_h=0, off=Fa
     fig, ax = plt.subplots(figsize=(6, 4))
     ax.set_title(title, fontsize=10, weight='bold')
     
-    # กำหนดขอบเขตการวาดให้ไม่เกินขนาดถัง
-    padding = 2 # ระยะห่างจากขอบ
+    # Define effective drawing area to prevent overflow
+    padding = 2 # distance from edge
     effective_l = l - 2*padding
     effective_h = (water_h if side else h_limit) - 2*padding
     
@@ -139,16 +139,16 @@ def draw_tank(l, h_limit, h_list, title, side=False, tank_h=0, water_h=0, off=Fa
     
     n = len(h_list)
     if n > 0 and area_h > 0:
-        # ปรับการคำนวณ Grid ให้ไม่เกินพื้นที่ Effective
+        # Calculate Grid based on effective area
         cols = math.ceil(math.sqrt(n * (effective_l / effective_h)))
         rows = math.ceil(n / cols)
         
-        # คำนวณระยะห่างใหม่โดยอิงจากพื้นที่ Effective
+        # Recalculate spacing based on effective area
         sp_x = effective_l / (cols + 1)
         sp_y = effective_h / (rows + 1)
         
         for r in range(rows):
-            # ส่วนคำนวณจัดกึ่งกลาง
+            # Center alignment calculation
             items_this_row = min(cols, n - (r * cols))
             row_indent = ((cols - items_this_row) * sp_x) / 2
             
@@ -157,7 +157,7 @@ def draw_tank(l, h_limit, h_list, title, side=False, tank_h=0, water_h=0, off=Fa
                 if cnt < n:
                     fq = h_list[cnt]
                     
-                    # คำนวณตำแหน่งโดยบวก padding เข้าไป
+                    # Base position plus padding
                     base_x = (c + 1) * sp_x + padding
                     base_y = (r + 1) * sp_y + padding
                     
@@ -166,12 +166,12 @@ def draw_tank(l, h_limit, h_list, title, side=False, tank_h=0, water_h=0, off=Fa
                     
                     x = base_x + stagger + offset_side + row_indent
                     
-                    # Logic กันล้นขอบแบบเคร่งครัด
-                    if x > l - padding: x = l - padding - 2.5 # ถอยกลับเข้ามาถ้าเกิน
-                    if x < padding: x = padding + 2.5 # ดันกลับถ้าหลุดซ้าย
+                    # Strict boundary logic
+                    if x > l - padding: x = l - padding - 2.5 # Push back if overflow right
+                    if x < padding: x = padding + 2.5 # Push back if overflow left
                     
                     y = base_y
-                    # Logic กันล้นขอบแนวตั้ง
+                    # Vertical boundary logic
                     if y > (water_h if side else h_limit) - padding: y = (water_h if side else h_limit) - padding - 2.5
                     
                     c_node = '#d32f2f' if fq == 28 else '#1976d2'
@@ -189,7 +189,7 @@ def draw_tank(l, h_limit, h_list, title, side=False, tank_h=0, water_h=0, off=Fa
 st.title(t("title"))
 st.caption(t("caption"))
 
-# เมนูนำทาง
+# Navigation
 page = st.sidebar.radio(t("nav_header"), [t("nav_manual"), t("nav_calc")])
 st.sidebar.divider()
 
@@ -211,8 +211,7 @@ if page == t("nav_manual"):
             3. **การจัดวาง (NEW):** ระบุจำนวนแถวและจำนวนชั้นที่วางซ้อนกัน โปรแกรมจะคำนวณค่าเผื่อ (Stacking Factor) ให้
             4. **เลือกโหมด:** ออกแบบใหม่ หรือ ตรวจสอบของเดิม
             """)
-        # ... (เนื้อหา Manual เดิมคงไว้) ...
-        # ... (เพื่อให้โค้ดกระชับ ผมขอย่อส่วน Manual ที่เหลือลง เพราะเหมือนเดิมทุกประการครับ) ...
+        # ... (Same Manual Content) ...
         with tab1:
             st.markdown("""
             ### 🌊 ปรากฏการณ์ Acoustic Cavitation
@@ -254,10 +253,44 @@ if page == t("nav_manual"):
             * ❌ **เสื่อมสภาพ:** ไม่มีรอยพรุนเลย หรือมีแถบเรียบ (Blind Spot)
             """)
         with tab5:
-            st.markdown("""
+            st.markdown(r"""
             ### 🧮 รวมสูตรคำนวณ (Formulas)
-            **1. แปลงหน่วย:** $W/L = W/Gal / 3.785$
-            **2. สูตรการหาพลังงงานรวม:** $P_{req}(W) = V_{eff}(Liters) \\times D_{target}(W/L ที่ต้องการ)$
+
+            #### 1. การแปลงหน่วย (Unit Conversion)
+            อ้างอิง: **1 US Gallon $\approx$ 3.785 Liters**
+            * **แปลง W/G เป็น W/L:**
+              $$ W/L = \frac{W/G}{3.785} $$
+              *ตัวอย่าง:* $5 \text{ W/G} \div 3.785 = 1.32 \text{ W/L}$
+            * **แปลง W/L เป็น W/G:**
+              $$ W/G = W/L \times 3.785 $$
+              *ตัวอย่าง:* $1.32 \text{ W/L} \times 3.785 = 4.996 \text{ W/G}$
+
+            ---
+
+            #### 2. สูตรคำนวณกำลังงานสุทธิ ($T_{final}$)
+            $$ T_{final} = P_{base} \times K_{mat} \times K_{stack} $$
+
+            **โดยที่:**
+            * **$T_{final}$ (Target Power):** กำลังอัลตราโซนิกสุทธิที่ต้องใช้
+            * **$P_{base}$:** กำลังพื้นฐานที่คำนวณจากปริมาตรน้ำ ($V_{eff} \times W/L$)
+            * **$K_{mat}$ (Material Load Factor):** ตัวประกอบภาระงานจากวัสดุ
+              * *กรณีทองแดง (ความหนาแน่น ~8.96 g/cm³):* ใช้ค่า **1.15** (เผื่อโหลด 15%)
+            * **$K_{stack}$ (Stacking Factor):** ค่าเผื่อการซ้อนทับ (ตัวแปรสำคัญ)
+
+            ---
+
+            #### 3. วิธีประเมินค่า $K_{stack}$
+            สำหรับการวางซ้อนกัน (Stacking) จะคิดค่า Loss ประมาณ **5% ต่อชั้นที่เพิ่มขึ้น**
+            $$ K_{stack} = 1 + (0.05 \times (\text{จำนวนชั้น} - 1)) $$
+
+            **📝 ตัวอย่างการคำนวณจริง:**
+            * **โจทย์:** $P_{base} = 1,200 \text{ W}$, งานทองแดง ($K_{mat} = 1.15$), วางซ้อนกัน **10 ชั้น**
+            
+            **วิธีทำ:**
+            1. **หา $K_{stack}$:** มี 10 ชั้น (ทับเพิ่มมา 9 ชั้น)
+               $$ K_{stack} = 1 + (0.05 \times 9) = 1 + 0.45 = \mathbf{1.45} \text{ (เพิ่ม 45\%)} $$
+            2. **หา $T_{final}$:**
+               $$ T_{final} = 1,200 \times 1.15 \times 1.45 = \mathbf{2,001 \text{ W}} $$
             """)
         with tab6:
             st.info("📂 **Stacking Research**")
