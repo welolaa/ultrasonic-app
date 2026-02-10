@@ -299,7 +299,7 @@ if page == t("nav_manual"):
             #* การวางซ้อนกันทำให้เกิด **Acoustic Shadowing (เงาเสียง)**
             #* สูตรชดเชย: เพิ่มกำลัง **5%** ต่อชั้นที่เพิ่มขึ้น ($K_{stack}$)
             #* ข้อควรระวัง: หากซ้อนเกิน 5 ชั้น ควรแบ่งล้าง หรือใช้ระบบเขย่าตะแกรง
-            """)
+            #""")
             
     # ENGLISH MANUAL
     else:
@@ -569,3 +569,4 @@ elif page == t("nav_calc"):
              g1, g2 = st.columns(2)
              g1.pyplot(draw_tank(L, water_level, [], "Side Wall A (No Heads)", True, H_tank, water_level))
              g2.pyplot(draw_tank(L, water_level, [], "Side Wall B (No Heads)", True, H_tank, water_level, True))
+
