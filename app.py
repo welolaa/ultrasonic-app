@@ -219,7 +219,7 @@ if page == t("nav_manual"):
             ### 📡 การเลือกความถี่
             | ความถี่ | ลักษณะเด่น | ข้อดี | ข้อควรระวัง |
             | :--- | :--- | :--- | :--- |
-            | **28 kHz** | ฟองใหญ่ แรงระเบิดสูง | เหมาะมากสำหรับ **"ระเบิด" คราบฟลักซ์หนาๆ** | เสียงดัง, ระวังผิวตามด (Pitting) |
+            | **28 kHz** | ฟองใหญ่ แรงระเบิดสูง | เหมาะสำหรับ **"ระเบิด" คราบสกปรก** | เสียงดัง, อาจเกิดตามดที่ชิ้นงาน (Pitting) |
             | **40 kHz** | ฟองเล็ก จำนวนมาก | เข้าถึง **ซอกมุม รูท่อ (ID)** ได้ดีกว่า | แรงกระแทกน้อยกว่า |
             """)
         with tab2:
@@ -569,4 +569,5 @@ elif page == t("nav_calc"):
              g1, g2 = st.columns(2)
              g1.pyplot(draw_tank(L, water_level, [], "Side Wall A (No Heads)", True, H_tank, water_level))
              g2.pyplot(draw_tank(L, water_level, [], "Side Wall B (No Heads)", True, H_tank, water_level, True))
+
 
