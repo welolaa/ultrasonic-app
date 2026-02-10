@@ -197,6 +197,7 @@ st.sidebar.divider()
 # PAGE: MANUAL
 # ==========================================
 if page == t("nav_manual"):
+    # THAI MANUAL
     if lang == "th":
         st.header("📘 องค์ความรู้และการออกแบบ (Engineering Manual)")
         tab0, tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
@@ -211,7 +212,6 @@ if page == t("nav_manual"):
             3. **การจัดวาง (NEW):** ระบุจำนวนแถวและจำนวนชั้นที่วางซ้อนกัน โปรแกรมจะคำนวณค่าเผื่อ (Stacking Factor) ให้
             4. **เลือกโหมด:** ออกแบบใหม่ หรือ ตรวจสอบของเดิม
             """)
-        # ... (Same Manual Content) ...
         with tab1:
             st.markdown("""
             ### 🌊 ปรากฏการณ์ Acoustic Cavitation
@@ -292,18 +292,120 @@ if page == t("nav_manual"):
             2. **หา $T_{final}$:**
                $$ T_{final} = 1,200 \times 1.15 \times 1.45 = \mathbf{2,001 \text{ W}} $$
             """)
-        with tab6:
-            st.info("📂 **Stacking Research**")
-            st.markdown("""
-            **การวางซ้อนทับ (Stacking):**
-            * การวางซ้อนกันทำให้เกิด **Acoustic Shadowing (เงาเสียง)**
-            * สูตรชดเชย: เพิ่มกำลัง **5%** ต่อชั้นที่เพิ่มขึ้น ($K_{stack}$)
-            * ข้อควรระวัง: หากซ้อนเกิน 5 ชั้น ควรแบ่งล้าง หรือใช้ระบบเขย่าตะแกรง
+        #with tab6:
+            #st.info("📂 **Stacking Research**")
+            #st.markdown("""
+            #**การวางซ้อนทับ (Stacking):**
+            #* การวางซ้อนกันทำให้เกิด **Acoustic Shadowing (เงาเสียง)**
+            #* สูตรชดเชย: เพิ่มกำลัง **5%** ต่อชั้นที่เพิ่มขึ้น ($K_{stack}$)
+            #* ข้อควรระวัง: หากซ้อนเกิน 5 ชั้น ควรแบ่งล้าง หรือใช้ระบบเขย่าตะแกรง
             """)
+            
+    # ENGLISH MANUAL
     else:
         st.header("📘 Engineering Manual & Knowledge Base")
-        # ... (English Manual content remains similiar) ...
-        st.info("Please refer to Thai version for full manual details if needed.")
+        tab0, tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+            "📖 User Guide", "1. Theory & Freq", "2. W/L Standards", 
+            "3. Mounting & Safety", "4. Foil Test", "5. Formulas", "📝 Research"
+        ])
+        
+        with tab0:
+            st.markdown("""
+            ### 📖 How to Use (Step-by-Step)
+            **1. Tank Info:** Enter **Length x Width x Height** and **Water Level**.
+            **2. Conditions:**
+            * **Chemistry:** Check ✅ (Reduces power requirement).
+            * **Heavy Load:** Check ✅ (Increases power to compensate for mass).
+            **3. Stacking (NEW):** Input the number of **Rows** and **Layers**. The program calculates the Stacking Factor ($K_{stack}$) to compensate for acoustic shadowing.
+            **4. Hardware Specs:** Enter Watts and Heads per board.
+            **5. Mode:** Select **Design New** or **Check Existing**.
+            """)
+        with tab1:
+            st.markdown("""
+            ### 🌊 Acoustic Cavitation
+            Ultrasonic waves create microscopic bubbles (**Bubble nuclei**) which expand and collapse violently. This energy dislodges contaminants.
+            ### 📡 Frequency Selection
+            | Freq | Characteristics | Pros | Caution |
+            | :--- | :--- | :--- | :--- |
+            | **28 kHz** | Large bubbles, High impact | Best for **Heavy Flux Removal** | Loud, risk of Pitting on soft metals |
+            | **40 kHz** | Small bubbles, High qty | Better penetration (**ID/Holes**) | Less impact force |
+            """)
+        with tab2:
+            st.markdown("""
+            ### 📊 Watts per Liter (W/L) Importance
+            **Standard for Heavy Duty Flux Removal:**
+            """)
+            df_std = pd.DataFrame({
+                "Tank Size (Liters)": ["10 L", "20 L", "50 L", "100 L", "> 190 L (Large Tank)"],
+                "Rec. Value (W/L)": ["30 - 35 W/L", "25 - 30 W/L", "20 - 25 W/L", "15 - 20 W/L", "~5.3 W/L"],
+                "Approx Total Watt": ["300-350 W", "500-600 W", "1000-1250 W", "1500-2000 W", "Low Density"]
+            })
+            st.table(df_std)
+        with tab3:
+            st.markdown("""
+            ### 🛠️ Mounting Comparison
+            **1. Bottom Mounting** - Direct upward waves, but sludge covers the face.
+            ---
+            **2. Side Mounting** - Longer life, but watch out for blind spots.
+            ---
+            ### 🛡️ Damage Prevention
+            * **No Bottom Placement:** Use a **Basket** raised 1-2 inches.
+            * **No Dry Running:** Must have water at least 2/3 full.
+            """)
+        with tab4:
+            st.markdown("""
+            ### 🧪 Performance Test (Aluminum Foil Test)
+            **Method:** Dip foil vertically for 30-60 seconds.
+            **Results:**
+            * ✅ **Normal:** Uniform wrinkles and perforations.
+            * ❌ **Degraded:** No perforations or smooth bands (Blind Spots).
+            """)
+        with tab5:
+            st.markdown(r"""
+            ### 🧮 Calculation Formulas
+
+            #### 1. Unit Conversion
+            Ref: **1 US Gallon $\approx$ 3.785 Liters**
+            * **W/G to W/L:**
+              $$ W/L = \frac{W/G}{3.785} $$
+            * **W/L to W/G:**
+              $$ W/G = W/L \times 3.785 $$
+
+            ---
+
+            #### 2. Target Power Equation ($T_{final}$)
+            $$ T_{final} = P_{base} \times K_{mat} \times K_{stack} $$
+
+            **Variables:**
+            * **$T_{final}$:** Net Required Ultrasonic Power.
+            * **$P_{base}$:** Base Power based on volume ($V_{eff} \times W/L$).
+            * **$K_{mat}$ (Material Factor):** * *Copper (~8.96 g/cm³):* Use **1.15** (+15% load).
+            * **$K_{stack}$ (Stacking Factor):** Compensation for multiple layers.
+
+            ---
+
+            #### 3. Stacking Factor ($K_{stack}$)
+            For stacked parts, we estimate **5% loss per additional layer**.
+            $$ K_{stack} = 1 + (0.05 \times (\text{Layers} - 1)) $$
+
+            **📝 Example:**
+            * **Given:** $P_{base} = 1,200 \text{ W}$, Copper ($K_{mat} = 1.15$), **10 Layers**.
+            
+            **Calculation:**
+            1. **Find $K_{stack}$:** 10 layers (9 extra layers)
+               $$ K_{stack} = 1 + (0.05 \times 9) = 1 + 0.45 = \mathbf{1.45} \text{ (+45\%)} $$
+            2. **Find $T_{final}$:**
+               $$ T_{final} = 1,200 \times 1.15 \times 1.45 = \mathbf{2,001 \text{ W}} $$
+            """)
+           #with tab6:
+            #st.info("📂 **Stacking Research**")
+            #st.markdown("""
+            #**Shadowing & Stacking:**
+            #* Stacking parts creates **Acoustic Shadowing**, blocking waves from reaching inner layers.
+            #* **Cross-fire Effect:** Using both Bottom and Side transducers helps minimize these shadows.
+         #   * **Warning:** If stacking > 5 layers, consider **batch splitting** or **mechanical agitation** to prevent dead zones and cavitation erosion on outer layers.
+         #   """) 
+
 
 # ==========================================
 # PAGE: CALCULATOR (โปรแกรมคำนวณ)
