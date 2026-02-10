@@ -123,6 +123,11 @@ def draw_tank(l, h_limit, h_list, title, side=False, tank_h=0, water_h=0, off=Fa
     fig, ax = plt.subplots(figsize=(6, 4))
     ax.set_title(title, fontsize=10, weight='bold')
     
+    # กำหนดขอบเขตการวาดให้ไม่เกินขนาดถัง
+    padding = 2 # ระยะห่างจากขอบ
+    effective_l = l - 2*padding
+    effective_h = (water_h if side else h_limit) - 2*padding
+    
     if side:
         ax.add_patch(patches.Rectangle((0,0), l, tank_h, fc='#eeeeee', ec='#444', lw=2))
         ax.add_patch(patches.Rectangle((0,0), l, water_h, fc='#b3e5fc', alpha=0.6))
@@ -134,15 +139,17 @@ def draw_tank(l, h_limit, h_list, title, side=False, tank_h=0, water_h=0, off=Fa
     
     n = len(h_list)
     if n > 0 and area_h > 0:
-        cols = math.ceil(math.sqrt(n * (l / area_h)))
+        # ปรับการคำนวณ Grid ให้ไม่เกินพื้นที่ Effective
+        cols = math.ceil(math.sqrt(n * (effective_l / effective_h)))
         rows = math.ceil(n / cols)
-        sp_x = l / (cols + 1)
-        sp_y = area_h / (rows + 1)
+        
+        # คำนวณระยะห่างใหม่โดยอิงจากพื้นที่ Effective
+        sp_x = effective_l / (cols + 1)
+        sp_y = effective_h / (rows + 1)
         
         for r in range(rows):
-            # === [เพิ่ม] ส่วนคำนวณจัดกึ่งกลาง ===
-            items_this_row = min(cols, n - (r * cols)) # ดูว่าแถวนี้มีกี่ตัว
-            # คำนวณระยะร่นซ้ายเพื่อให้แถวนี้อยู่ตรงกลางพอดี
+            # ส่วนคำนวณจัดกึ่งกลาง
+            items_this_row = min(cols, n - (r * cols))
             row_indent = ((cols - items_this_row) * sp_x) / 2
             
             for c in range(cols):
@@ -150,27 +157,26 @@ def draw_tank(l, h_limit, h_list, title, side=False, tank_h=0, water_h=0, off=Fa
                 if cnt < n:
                     fq = h_list[cnt]
                     
-                    # ตำแหน่งพื้นฐาน
-                    base_x = (c + 1) * sp_x
-                    base_y = (r + 1) * sp_y
+                    # คำนวณตำแหน่งโดยบวก padding เข้าไป
+                    base_x = (c + 1) * sp_x + padding
+                    base_y = (r + 1) * sp_y + padding
                     
-                    # Stagger (สลับฟันปลา)
                     stagger = (sp_x / 2) if (r % 2 != 0) else 0
                     offset_side = (sp_x / 2) if off else 0
                     
-                    # === [แก้] บวก row_indent เข้าไปที่ค่า x ===
                     x = base_x + stagger + offset_side + row_indent
                     
-                    # Logic กันล้นขอบ (ถ้าแถวเต็ม)
-                    if x > l + (sp_x/4): x = x - l
+                    # Logic กันล้นขอบแบบเคร่งครัด
+                    if x > l - padding: x = l - padding - 2.5 # ถอยกลับเข้ามาถ้าเกิน
+                    if x < padding: x = padding + 2.5 # ดันกลับถ้าหลุดซ้าย
                     
                     y = base_y
+                    # Logic กันล้นขอบแนวตั้ง
+                    if y > (water_h if side else h_limit) - padding: y = (water_h if side else h_limit) - padding - 2.5
                     
-                    # วาดจุดและตัวเลข
                     c_node = '#d32f2f' if fq == 28 else '#1976d2'
                     ax.add_patch(plt.Circle((x, y), 2.5, color=c_node, ec='white', alpha=0.9))
                     ax.text(x, y, str(fq), color='white', ha='center', va='center', fontsize=7, weight='bold')
-
                     
     ax.set_xlim(-2, l + 2)
     ax.set_ylim(-2, (tank_h if side else h_limit) + 2)
@@ -248,46 +254,19 @@ if page == t("nav_manual"):
             * ❌ **เสื่อมสภาพ:** ไม่มีรอยพรุนเลย หรือมีแถบเรียบ (Blind Spot)
             """)
         with tab5:
-            st.markdown(r"""
+            st.markdown("""
             ### 🧮 รวมสูตรคำนวณ (Formulas)
-
-            #### 1. การแปลงหน่วย (Unit Conversion)
-            อ้างอิง: **1 US Gallon $\approx$ 3.785 Liters**
-            * **แปลง W/G เป็น W/L:**
-              $$ W/L = \frac{W/G}{3.785} $$
-              *ตัวอย่าง:* $5 \text{ W/G} \div 3.785 = 1.32 \text{ W/L}$
-            * **แปลง W/L เป็น W/G:**
-              $$ W/G = W/L \times 3.785 $$
-              *ตัวอย่าง:* $1.32 \text{ W/L} \times 3.785 = 4.996 \text{ W/G}$
-
-            ---
-
-            #### 2. สูตรคำนวณกำลังงานสุทธิ ($T_{final}$)
-            $$ T_{final} = P_{base} \times K_{mat} \times K_{stack} $$
-
-            **โดยที่:**
-            * **$T_{final}$ (Target Power):** กำลังอัลตราโซนิกสุทธิที่ต้องใช้
-            * **$P_{base}$:** กำลังพื้นฐานที่คำนวณจากปริมาตรน้ำ ($V_{eff} \times W/L$)
-            * **$K_{mat}$ (Material Load Factor):** ตัวประกอบภาระงานจากวัสดุ
-              * *กรณีทองแดง (ความหนาแน่น ~8.96 g/cm³):* ใช้ค่า **1.15** (เผื่อโหลด 15%)
-            * **$K_{stack}$ (Stacking Factor):** ค่าเผื่อการซ้อนทับ (ตัวแปรสำคัญ)
-
-            ---
-
-            #### 3. วิธีประเมินค่า $K_{stack}$
-            สำหรับการวางซ้อนกัน (Stacking) จะคิดค่า Loss ประมาณ **5% ต่อชั้นที่เพิ่มขึ้น**
-            $$ K_{stack} = 1 + (0.05 \times (\text{จำนวนชั้น} - 1)) $$
-
-            **📝 ตัวอย่างการคำนวณจริง:**
-            * **โจทย์:** $P_{base} = 1,200 \text{ W}$, งานทองแดง ($K_{mat} = 1.15$), วางซ้อนกัน **10 ชั้น**
-            
-            **วิธีทำ:**
-            1. **หา $K_{stack}$:** มี 10 ชั้น (ทับเพิ่มมา 9 ชั้น)
-               $$ K_{stack} = 1 + (0.05 \times 9) = 1 + 0.45 = \mathbf{1.45} \text{ (เพิ่ม 45\%)} $$
-            2. **หา $T_{final}$:**
-               $$ T_{final} = 1,200 \times 1.15 \times 1.45 = \mathbf{2,001 \text{ W}} $$
+            **1. แปลงหน่วย:** $W/L = W/Gal / 3.785$
+            **2. สูตรการหาพลังงงานรวม:** $P_{req}(W) = V_{eff}(Liters) \\times D_{target}(W/L ที่ต้องการ)$
             """)
-    
+        with tab6:
+            st.info("📂 **Stacking Research**")
+            st.markdown("""
+            **การวางซ้อนทับ (Stacking):**
+            * การวางซ้อนกันทำให้เกิด **Acoustic Shadowing (เงาเสียง)**
+            * สูตรชดเชย: เพิ่มกำลัง **5%** ต่อชั้นที่เพิ่มขึ้น ($K_{stack}$)
+            * ข้อควรระวัง: หากซ้อนเกิน 5 ชั้น ควรแบ่งล้าง หรือใช้ระบบเขย่าตะแกรง
+            """)
     else:
         st.header("📘 Engineering Manual & Knowledge Base")
         # ... (English Manual content remains similiar) ...
@@ -420,15 +399,38 @@ elif page == t("nav_calc"):
         """, unsafe_allow_html=True)
 
     st.subheader(t("layout"))
+    
+    # เพิ่มตัวเลือกการกระจายหัว Transducer
+    dist_mode = st.radio("รูปแบบการกระจาย (Distribution):", ["ก้นถังอย่างเดียว (Bottom Only)", "ก้นถัง + ข้างถัง (Bottom + Side)"], horizontal=True)
+    
     mount_opt = st.radio(t("mount_view"), [t("bottom"), t("side")], horizontal=True)
     heads_list = [28]*n_h28 + [40]*n_h40
     random.seed(42); random.shuffle(heads_list)
     
-    if mount_opt == t("bottom"):
-        st.pyplot(draw_tank(L, W, heads_list, f"Bottom View ({len(heads_list)} Heads)"))
+    # Logic การแบ่งหัวสำหรับโหมด Bottom + Side
+    if dist_mode == "ก้นถัง + ข้างถัง (Bottom + Side)":
+        # แบ่ง 60% ลงก้นถัง, 40% ไปข้างถัง (ข้างละ 20%)
+        n_total = len(heads_list)
+        n_bottom = int(n_total * 0.6)
+        n_side = n_total - n_bottom
+        heads_bottom = heads_list[:n_bottom]
+        heads_side = heads_list[n_bottom:]
     else:
-        mid = len(heads_list)//2
-        g1, g2 = st.columns(2)
-        g1.pyplot(draw_tank(L, water_level, heads_list[:mid], "Side A", True, H_tank, water_level))
-        g2.pyplot(draw_tank(L, water_level, heads_list[mid:], "Side B", True, H_tank, water_level, True))
+        heads_bottom = heads_list
+        heads_side = []
 
+    if mount_opt == t("bottom"):
+        st.pyplot(draw_tank(L, W, heads_bottom, f"Bottom View ({len(heads_bottom)} Heads)"))
+    else:
+        if dist_mode == "ก้นถัง + ข้างถัง (Bottom + Side)" and len(heads_side) > 0:
+            mid = len(heads_side)//2
+            g1, g2 = st.columns(2)
+            g1.pyplot(draw_tank(L, water_level, heads_side[:mid], f"Side Wall A ({len(heads_side[:mid])} Heads)", True, H_tank, water_level))
+            g2.pyplot(draw_tank(L, water_level, heads_side[mid:], f"Side Wall B ({len(heads_side[mid:])} Heads)", True, H_tank, water_level, True))
+        else:
+            # กรณี Bottom Only หรือไม่มีหัวเหลือมาข้างถัง ให้แสดง Side View เปล่าๆ หรือแจ้งเตือน
+             st.info("โหมดนี้ติดหัวที่ก้นถังทั้งหมด (ไม่มีหัวที่ผนังข้าง)")
+             # วาด Side View แบบไม่มีหัว เพื่อให้เห็นระดับน้ำ
+             g1, g2 = st.columns(2)
+             g1.pyplot(draw_tank(L, water_level, [], "Side Wall A (No Heads)", True, H_tank, water_level))
+             g2.pyplot(draw_tank(L, water_level, [], "Side Wall B (No Heads)", True, H_tank, water_level, True))
