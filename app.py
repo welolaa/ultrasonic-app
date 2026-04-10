@@ -56,10 +56,10 @@ T = {
     
     # --- Stacking Section ---
     "stack_header": {"th": "4. การจัดวางชิ้นงาน (Stacking)", "en": "4. Workpiece Stacking"},
-    "n_rows": {"th": "วางเรียงกี่แถว (แนวนอน)", "en": "Number of Rows (Horizontal)"},
-    "n_layers": {"th": "วางซ้อนกี่ชั้น (แนวตั้ง)", "en": "Number of Layers (Vertical)"},
+    "n_rows": {"th": "วางเรียงกี่แถวหน้ากระดาน", "en": "Number of Rows (Horizontal)"},
+    "n_layers": {"th": "วางซ้อนกี่ชิ้น (แนวลึก)", "en": "Number of Pieces Stacked (Depth)"},
     "stack_res": {"th": "📦 ค่าชดเชยการซ้อน (Stacking Factor)", "en": "📦 Stacking Factor"},
-    "stack_warn": {"th": "⚠️ เตือน: ซ้อนเกิน 5 ชั้น อาจเกิดเงาเสียง (Shadowing) แนะนำให้แบ่งล้าง", "en": "⚠️ Warning: Stacking > 5 layers causes shadowing. Split batches recommended."},
+    "stack_warn": {"th": "⚠️ เตือน: ซ้อนแน่นเกินไป อาจเกิดเงาเสียง ควรติดตั้งหัวแบบ Cross-fire", "en": "⚠️ Warning: Dense stacking may cause shadowing. Cross-fire mounting recommended."},
 
     "design_sys": {"th": "🛠️ การคำนวณและวิเคราะห์ (System Analysis)", "en": "🛠️ System Analysis"},
     "target": {"th": "🎯 กำหนดเป้าหมาย W/L", "en": "🎯 Set Target W/L"},
@@ -103,10 +103,16 @@ def get_base_density(vol_liters, has_chem, heavy_load):
     if heavy_load: base_wl *= 1.15
     return round(base_wl, 2)
 
-def calculate_stacking_factor(rows, layers):
-    k_stack = 1.0 + (0.05 * (layers - 1))
-    if rows > 1:
-        k_stack += 0.05
+def calculate_stacking_factor(rows, pieces):
+    # ปรับสูตรใหม่สำหรับการห้อยแบบ Rack/Jig ที่มันโปรงกว่าตะแกรงทึบ
+    # ให้เริ่มต้นที่ 1.0 และเพิ่มขึ้นอย่างช้าๆ (Logarithmic scaling) แทนการคูณเส้นตรง
+    # เพื่อป้องกันค่า W/L ระเบิดทะลุเพดานเมื่อใส่ 50 ชิ้น
+    base = 1.0
+    row_factor = (rows - 1) * 0.05
+    # ใช้ log ลดทอนผลกระทบของการซ้อนจำนวนมาก (สมมติว่าชิ้นงานไม่ได้ทับกันสนิท 100%)
+    piece_factor = math.log10(pieces) * 0.15 if pieces > 1 else 0
+    
+    k_stack = base + row_factor + piece_factor
     return round(k_stack, 2)
 
 def draw_tank(l, h_limit, h_list, title, side=False, tank_h=0, water_h=0, off=False):
@@ -182,17 +188,17 @@ st.sidebar.divider()
 if page == t("nav_manual"):
     if lang == "th":
         st.header("📘 องค์ความรู้และการออกแบบ (Engineering Manual)")
-        tab0, tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+        tab0, tab1, tab2, tab3, tab4, tab5 = st.tabs([
             "📖 คู่มือการใช้โปรแกรม", "1. ทฤษฎี & ความถี่", "2. มาตรฐาน W/L", 
-            "3. การติดตั้ง & Safety", "4. การทดสอบ", "5. สูตรคำนวณ", "📝 ข้อมูลวิจัย"
+            "3. การติดตั้ง & Safety", "4. การทดสอบ", "5. สูตรคำนวณ"
         ])
         with tab0:
             st.markdown("""
             ### 📖 วิธีใช้งานโปรแกรม
             1. **กรอกข้อมูลถัง:** ขนาดถังและระดับน้ำ
             2. **เงื่อนไข:** เลือกใช้น้ำยาเคมี และลักษณะชิ้นงาน (Heavy Load)
-            3. **การจัดวาง:** ระบุจำนวนแถวและชั้นที่ซ้อนกัน เพื่อคำนวณค่าเผื่อ (Stacking Factor)
-            4. **จัดการสเปกบอร์ด (ใหม่):** ในตาราง ให้พิมพ์ตัวเลขบอร์ดที่คุณต้องการ หรือกด Add Row เพื่อเพิ่มรุ่นบอร์ดผสมกันได้อย่างอิสระ โปรแกรมจะรวมพลังงานให้ทันที
+            3. **การจัดวาง:** ระบุจำนวนแถวและจำนวนชิ้นที่ซ้อนกัน เพื่อคำนวณค่าเผื่อ (Stacking Factor) ที่ปรับแก้ให้เหมาะกับงานแบบห้อยราว (Rack)
+            4. **จัดการสเปกบอร์ด:** ในตาราง ให้พิมพ์ตัวเลขบอร์ดที่คุณต้องการ หรือกด Add Row เพื่อเพิ่มรุ่นบอร์ดผสมกันได้อย่างอิสระ โปรแกรมจะรวมพลังงานให้ทันที
             """)
         with tab1:
             st.markdown("""
@@ -220,10 +226,10 @@ if page == t("nav_manual"):
             ### 🛠️ เปรียบเทียบการติดตั้ง (Mounting)
             **1. ติดก้นถัง (Bottom Mounting)** - คลื่นพุ่งขึ้นโดยตรง แต่ตะกอนอาจทับหน้าหัว
             ---
-            **2. ติดข้างถัง (Side Mounting)** - อายุการใช้งานยาวนานกว่า แต่ต้องระวังจุดบอด
+            **2. ติดข้างถัง (Side Mounting)** - อายุการใช้งานยาวนานกว่า แต่ต้องระวังจุดบอด เหมาะกับการยิงเข้าด้านข้างของชิ้นงานที่ห้อยลงมา
             ---
             ### 🛡️ การป้องกันความเสียหาย (Damage Prevention)
-            * **ห้ามวางก้นถัง:** ต้องใช้ตะแกรง (Basket) ยกสูง 1-2 นิ้ว
+            * **ห้ามวางติดผนังที่มีหัวขับ:** ต้องเว้นระยะอย่างน้อย 1-2 นิ้ว
             * **ห้ามเดินตัวเปล่า (Dry Running):** ต้องมีน้ำอย่างน้อย 2/3 ของถัง
             """)
         with tab4:
@@ -236,44 +242,18 @@ if page == t("nav_manual"):
             """)
         with tab5:
             st.markdown(r"""
-            ### 🧮 รวมสูตรคำนวณ (Formulas)
-
-            #### 1. การแปลงหน่วย (Unit Conversion)
-            อ้างอิง: **1 US Gallon $\approx$ 3.785 Liters**
-            * **แปลง W/G เป็น W/L:**
-              $$ W/L = \frac{W/G}{3.785} $$
-            * **แปลง W/L เป็น W/G:**
-              $$ W/G = W/L \times 3.785 $$
-
-            ---
-
-            #### 2. สูตรคำนวณกำลังงานสุทธิ ($T_{final}$)
+            ### 🧮 สูตรคำนวณกำลังงานสุทธิ ($T_{final}$)
             $$ T_{final} = P_{base} \times K_{mat} \times K_{stack} $$
 
             **โดยที่:**
             * **$T_{final}$ (Target Power):** กำลังอัลตราโซนิกสุทธิที่ต้องใช้
             * **$P_{base}$:** กำลังพื้นฐานที่คำนวณจากปริมาตรน้ำ ($V_{eff} \times W/L$)
             * **$K_{mat}$ (Material Load Factor):** ตัวประกอบภาระงานจากวัสดุ (เช่น ทองแดง ใช้ 1.15)
-            * **$K_{stack}$ (Stacking Factor):** ค่าเผื่อการซ้อนทับ
-
-            ---
-
-            #### 3. วิธีประเมินค่า $K_{stack}$
-            สำหรับการวางซ้อนกัน (Stacking) จะคิดค่า Loss ประมาณ **5% ต่อชั้นที่เพิ่มขึ้น**
-            $$ K_{stack} = 1 + (0.05 \times (\text{จำนวนชั้น} - 1)) $$
-            """)
-        with tab6:
-            st.info("📂 **Stacking Research**")
-            st.markdown("""
-            **การวางซ้อนทับ (Stacking):**
-            * การวางซ้อนกันทำให้เกิด **Acoustic Shadowing (เงาเสียง)**
-            * สูตรชดเชย: เพิ่มกำลัง **5%** ต่อชั้นที่เพิ่มขึ้น ($K_{stack}$)
-            * ข้อควรระวัง: หากซ้อนเกิน 5 ชั้น ควรแบ่งล้าง หรือใช้ระบบเขย่าตะแกรง
+            * **$K_{stack}$ (Stacking Factor):** ค่าเผื่อการซ้อนทับ (ปรับปรุงใหม่ด้วยสมการ Logarithmic สำหรับงานราวแขวน)
             """)
             
     else:
         st.header("📘 Engineering Manual & Knowledge Base")
-        # (English manual content omitted for brevity to keep the response clean, follows same structure)
         st.info("Please refer to Thai version for full manual details if needed.")
 
 # ==========================================
@@ -282,10 +262,10 @@ if page == t("nav_manual"):
 elif page == t("nav_calc"):
     # --- 1. Tank Info ---
     st.sidebar.header(t("tank_header"))
-    L = st.sidebar.number_input(t("L"), value=170.0, step=1.0)
-    W = st.sidebar.number_input(t("W"), value=80.0, step=1.0)
-    H_tank = st.sidebar.number_input(t("H"), value=50.0, step=1.0)
-    water_level = st.sidebar.number_input(t("level"), value=10.0, step=1.0)
+    L = st.sidebar.number_input(t("L"), value=85.0, step=1.0)
+    W = st.sidebar.number_input(t("W"), value=40.0, step=1.0)
+    H_tank = st.sidebar.number_input(t("H"), value=45.0, step=1.0)
+    water_level = st.sidebar.number_input(t("level"), value=35.0, step=1.0)
     
     # --- 2. Conditions ---
     st.sidebar.header(t("cond_header"))
@@ -294,12 +274,12 @@ elif page == t("nav_calc"):
     
     # --- 3. Stacking Inputs ---
     st.sidebar.header(t("stack_header"))
-    st.sidebar.info("ระบุการวางชิ้นงานเพื่อคำนวณค่าเผื่อ")
+    st.sidebar.info("ระบุการจัดเรียงชิ้นงาน (ท่อดัด 180 องศา)")
     col_stack1, col_stack2 = st.sidebar.columns(2)
     with col_stack1:
         n_rows = st.number_input(t("n_rows"), min_value=1, value=1, step=1)
     with col_stack2:
-        n_layers = st.number_input(t("n_layers"), min_value=1, value=1, step=1)
+        n_layers = st.number_input(t("n_layers"), min_value=1, value=50, step=1)
         
     vol = (L * W * water_level) / 1000
     base_density = get_base_density(vol, use_chem, heavy_load)
@@ -313,9 +293,9 @@ elif page == t("nav_calc"):
     # Initialize DataFrame in Session State
     if 'board_list' not in st.session_state:
         st.session_state.board_list = pd.DataFrame({
-            "Freq": [28, 40],
-            "Watts": [600, 300],
-            "Heads": [10, 5],
+            "Freq": [40, 40],
+            "Watts": [900, 900],
+            "Heads": [15, 15],
             "Qty": [1, 1]
         })
 
@@ -362,6 +342,15 @@ elif page == t("nav_calc"):
     st.markdown("---")
     st.subheader(t("design_sys"))
     
+    with st.expander(f"📊 {t('stack_res')}: **{k_stack}x**", expanded=True):
+        c_st1, c_st2, c_st3 = st.columns(3)
+        c_st1.metric(t("rec_val"), f"{base_density} W/L")
+        c_st2.metric("การชดเชย (Stacking Factor)", f"+{int((k_stack-1)*100)}%")
+        c_st3.metric(t("adj_val"), f"{final_rec_density} W/L", delta="ค่าที่แนะนำสำหรับงานนี้")
+        
+        if n_layers > 20:
+            st.warning(t("stack_warn"))
+
     # Target Setup Section
     col_in1, col_in2 = st.columns(2)
     with col_in1:
@@ -404,26 +393,39 @@ elif page == t("nav_calc"):
 
     st.subheader(t("layout"))
     
-    dist_mode = st.radio("รูปแบบการกระจาย (Distribution):", ["ก้นถังอย่างเดียว (Bottom Only)", "ก้นถัง + ข้างถัง (Bottom + Side)"], horizontal=True)
+    # อัปเดตตัวเลือก Distribution ให้มีข้างถังอย่างเดียว
+    dist_mode = st.radio("รูปแบบการกระจาย (Distribution):", [
+        "ก้นถังอย่างเดียว (Bottom Only)", 
+        "ก้นถัง + ข้างถัง (Bottom + Side)",
+        "ข้างถังอย่างเดียว (Side Only)"
+    ], horizontal=True)
+    
     mount_opt = st.radio(t("mount_view"), [t("bottom"), t("side")], horizontal=True)
     
     heads_list = [28]*n_h28 + [40]*n_h40
     random.seed(42); random.shuffle(heads_list)
     
+    heads_bottom = []
+    heads_side = []
+
     if dist_mode == "ก้นถัง + ข้างถัง (Bottom + Side)":
         n_total = len(heads_list)
         n_bottom = int(n_total * 0.6)
-        n_side = n_total - n_bottom
         heads_bottom = heads_list[:n_bottom]
         heads_side = heads_list[n_bottom:]
-    else:
+    elif dist_mode == "ข้างถังอย่างเดียว (Side Only)":
+        heads_side = heads_list
+    else: # Bottom Only
         heads_bottom = heads_list
-        heads_side = []
 
     if mount_opt == t("bottom"):
-        st.pyplot(draw_tank(L, W, heads_bottom, f"Bottom View ({len(heads_bottom)} Heads)"))
+        if dist_mode == "ข้างถังอย่างเดียว (Side Only)":
+            st.info("โหมดนี้ติดหัวที่ผนังข้างทั้งหมด (ไม่มีหัวที่ก้นถัง)")
+            st.pyplot(draw_tank(L, W, [], "Bottom View (No Heads)"))
+        else:
+            st.pyplot(draw_tank(L, W, heads_bottom, f"Bottom View ({len(heads_bottom)} Heads)"))
     else:
-        if dist_mode == "ก้นถัง + ข้างถัง (Bottom + Side)" and len(heads_side) > 0:
+        if (dist_mode == "ก้นถัง + ข้างถัง (Bottom + Side)" or dist_mode == "ข้างถังอย่างเดียว (Side Only)") and len(heads_side) > 0:
             mid = len(heads_side)//2
             g1, g2 = st.columns(2)
             g1.pyplot(draw_tank(L, water_level, heads_side[:mid], f"Side Wall A ({len(heads_side[:mid])} Heads)", True, H_tank, water_level))
