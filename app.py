@@ -10,7 +10,7 @@ import pandas as pd
 st.set_page_config(page_title="Ultrasonic Design Master", page_icon="💎", layout="wide")
 
 # ==========================================
-# 2. HELPER FUNCTIONS
+# 2. HELPER FUNCTIONS (ฟังก์ชันคำนวณและวาดกราฟิก)
 # ==========================================
 def get_base_density(vol_liters, has_chem, heavy_load):
     if vol_liters <= 20: base_wl = 30.0
@@ -30,7 +30,6 @@ def calculate_stacking_factor(pieces, rows, mode):
     row_factor = (rows - 1) * 0.15 
     # ชดเชยตะแกรง (ลวดตะแกรงบังคลื่น)
     mode_penalty = 0.25 if mode == "ตะแกรง (Basket)" else 0.0 
-    
     return round(base + row_factor + piece_factor + mode_penalty, 2)
 
 def evaluate_cleanliness(w_l, rows, mode, clearance):
@@ -59,14 +58,11 @@ def evaluate_cleanliness(w_l, rows, mode, clearance):
             
     return status
 
-# ---- ฟังก์ชันวาดซิมูเลชัน (แก้ปัญหา Font ภาษาไทยด้วยการใช้ Eng ในกราฟิก) ----
 def draw_simulation(L, W, H, water_level, part_width, n_parts, pitch, rows, mode, view="top"):
     fig, ax = plt.subplots(figsize=(8, 4))
     
     bundle_length = (n_parts - 1) * pitch + 1 
     margin_x = (L - bundle_length) / 2
-    
-    # คำนวณความกว้างรวมของทุกแถว
     row_gap = 5 # ระยะห่างระหว่างแถว 5 cm
     total_bundle_w = (rows * part_width) + ((rows - 1) * row_gap)
     margin_y_start = (W - total_bundle_w) / 2
@@ -76,7 +72,6 @@ def draw_simulation(L, W, H, water_level, part_width, n_parts, pitch, rows, mode
         ax.add_patch(patches.Rectangle((0, 0), L, W, fc='#e1f5fe', ec='#343a40', lw=3))
         
         if mode == "ตะแกรง (Basket)":
-            # วาดกรอบตะแกรง
             basket_margin = 5
             ax.add_patch(patches.Rectangle((basket_margin, basket_margin), L - 10, W - 10, fc='none', ec='#757575', lw=2, linestyle='--'))
             ax.text(10, 10, "Wire Mesh Basket", color='#757575', fontsize=8)
@@ -86,7 +81,7 @@ def draw_simulation(L, W, H, water_level, part_width, n_parts, pitch, rows, mode
             y_end = y_start + part_width
             
             if mode == "ราวแขวน (Rack)":
-                ax.axhline(y=(y_start+y_end)/2, color='#9e9e9e', linestyle='-.', lw=1) # เส้นราวแขวน
+                ax.axhline(y=(y_start+y_end)/2, color='#9e9e9e', linestyle='-.', lw=1) 
                 
             for i in range(n_parts):
                 x = margin_x + i * pitch
@@ -94,8 +89,7 @@ def draw_simulation(L, W, H, water_level, part_width, n_parts, pitch, rows, mode
                 
                 if mode == "ราวแขวน (Rack)":
                     ax.plot([x, x], [y_start, y_end], color=color, lw=2.5, solid_capstyle='round')
-                else: # Basket
-                    # วาดเป็นสี่เหลี่ยมพิงๆ กัน
+                else: 
                     rect_w = 2
                     ax.add_patch(patches.Rectangle((x-rect_w/2, y_start), rect_w, part_width, fc=color, ec='white', lw=0.5, alpha=0.8))
 
@@ -108,7 +102,7 @@ def draw_simulation(L, W, H, water_level, part_width, n_parts, pitch, rows, mode
         ax.add_patch(patches.Rectangle((0, 0), L, water_level, fc='#bbdefb', alpha=0.5))
         ax.axhline(y=water_level, color='#1e88e5', linestyle='--', lw=2)
         
-        part_height = 28 # ความสูงท่อ
+        part_height = 28
         
         if mode == "ตะแกรง (Basket)":
             basket_h = part_height + 5
@@ -116,13 +110,13 @@ def draw_simulation(L, W, H, water_level, part_width, n_parts, pitch, rows, mode
             base_y = 7
         else:
             rack_y = H + 2
-            ax.axhline(y=rack_y, color='#9e9e9e', linestyle='-', lw=4) # ราวหลัก
+            ax.axhline(y=rack_y, color='#9e9e9e', linestyle='-', lw=4)
             base_y = water_level - part_height + 5
         
         for r in range(rows):
-            offset_y = r * 2 # ขยับเหลื่อมกันให้เห็นว่ามีหลายแถว
+            offset_y = r * 2 
             for i in range(n_parts):
-                x = margin_x + i * pitch + (r*1.5) # ขยับแกน x นิดนึงให้ดูมีมิติ
+                x = margin_x + i * pitch + (r*1.5)
                 color = '#ff9800' if x < 0 or x > L else '#1976d2'
                 
                 if mode == "ราวแขวน (Rack)":
@@ -137,16 +131,6 @@ def draw_simulation(L, W, H, water_level, part_width, n_parts, pitch, rows, mode
     ax.axis('off')
     return fig
 
-# ==========================================
-# 3. MAIN APP LAYOUT (หน้า UI)
-# ==========================================
-# ------------------------------------------
-# ส่วนที่ 3: พิมพ์เขียวเจาะผนังถัง (อัปเกรดระบบวัดระยะและป้องกันการชน)
-# ------------------------------------------
-st.header("📍 3. พิมพ์เขียวเจาะผนัง (Mounting Blueprint)")
-st.caption("ระบบคำนวณตำแหน่งเจาะรูอัตโนมัติ (Cross-fire Staggered Matrix) แยกซ้าย-ขวา เพื่อกันคลื่นชนกัน")
-
-# ฟังก์ชันวาดย่อยสำหรับ Blueprint (อัปเดตใหม่)
 def draw_wall_blueprint(L, H, water_level, is_right_wall, total_heads, measure_mode):
     fig, ax = plt.subplots(figsize=(10, 5))
     title = f"Right Wall ({total_heads} Heads)" if is_right_wall else f"Left Wall ({total_heads} Heads)"
@@ -178,25 +162,21 @@ def draw_wall_blueprint(L, H, water_level, is_right_wall, total_heads, measure_m
             top_coords, bottom_coords = x_top_base, x_bot_base
             c_node = '#1976d2'
 
-        # ถ้าระยะติดลบ (ชนกัน) ให้เปลี่ยนสีเป็นแดงเตือนภัย
-        if gap < 0: c_node = '#d32f2f'
+        if gap < 0: c_node = '#d32f2f' # แดงเตือนถ้าชนกัน
 
         for x in top_coords:
             ax.add_patch(plt.Circle((x, y_top), transducer_dia/2, color=c_node, ec='white', lw=1.5, alpha=0.8))
         for x in bottom_coords:
             ax.add_patch(plt.Circle((x, y_bottom), transducer_dia/2, color=c_node, ec='white', lw=1.5, alpha=0.8))
 
-        # วาดเส้นบอกระยะ
         if not is_right_wall and top_n > 1:
-            # ระยะขอบถัง
             ax.annotate('', xy=(0, y_top), xytext=(margin, y_top), arrowprops=dict(arrowstyle='<->', color='red'))
             ax.text(margin/2, y_top + 2, f'{margin} cm', color='red', ha='center', fontsize=9, weight='bold')
             
-            # ระยะระหว่างหัว
             if measure_mode == "กึ่งกลางถึงกึ่งกลาง (Center-to-Center)":
                 ax.annotate('', xy=(x_top_base[0], y_top), xytext=(x_top_base[1], y_top), arrowprops=dict(arrowstyle='<->', color='green'))
                 ax.text((x_top_base[0]+x_top_base[1])/2, y_top - 3.5, f'Pitch {pitch:.1f} cm', color='green', ha='center', fontsize=8, weight='bold')
-            else: # ขอบถึงขอบ
+            else: 
                 edge_x1 = x_top_base[0] + (transducer_dia/2)
                 edge_x2 = x_top_base[1] - (transducer_dia/2)
                 if gap >= 0:
@@ -209,35 +189,30 @@ def draw_wall_blueprint(L, H, water_level, is_right_wall, total_heads, measure_m
     ax.text(L/2, -6, f'Total Length = {L} cm', color='black', ha='center', fontsize=11, weight='bold')
     
     ax.set_xlim(-10, L + 10)
-    ax.set_ylim(-10, H_tank + 10)
+    ax.set_ylim(-10, H + 10)
     ax.set_aspect('equal')
     ax.axis('off')
     return fig
 
-# UI ควบคุม Blueprint
-total_side_heads = n_h28 + n_h40
-heads_per_wall = total_side_heads // 2
+# ==========================================
+# 3. MAIN APP LAYOUT (หน้า UI)
+# ==========================================
+st.title("💎 เครื่องมือออกแบบ Ultrasonic (Multi-Row & Basket Edition)")
+st.caption("ระบบคำนวณถังล้างอัลตราโซนิก พร้อมจำลองการวางชิ้นงานและการทะลวงของคลื่นเสียง")
 
-# ตรวจสอบการชนกัน (Collision Check) ก่อนวาด
-transducer_dia_check = 4.8
-usable_L_check = L - 20 # หักขอบซ้ายขวา 10cm
-top_n_check = math.ceil(heads_per_wall / 2)
-pitch_check = usable_L_check / (top_n_check - 1) if top_n_check > 1 else usable_L_check
-gap_check = pitch_check - transducer_dia_check
+# --- Sidebar Inputs ---
+st.sidebar.header("📐 1. ข้อมูลถังและชิ้นงาน")
+L = st.sidebar.number_input("ความยาวถัง (L) cm", value=100.0, step=1.0)
+W = st.sidebar.number_input("ความกว้างถัง (W) cm", value=50.0, step=1.0)
+H_tank = st.sidebar.number_input("ความสูงถัง (H) cm", value=45.0, step=1.0)
+water_level = st.sidebar.number_input("ระดับน้ำ (cm)", value=35.0, step=1.0)
 
-if gap_check < 0:
-    st.error(f"❌ **สร้างไม่ได้! ถังความยาว {L} cm สั้นเกินไป** หัวทรานสดิวเซอร์ (ขนาด 4.8 cm) จะเกยทับกัน แนะนำให้เพิ่มความยาวถังอย่างน้อยเป็น **{int((top_n_check-1)*(transducer_dia_check+1) + 20)} cm** หรือลดจำนวนหัวลงครับ")
-else:
-    st.success(f"✅ ติดตั้งได้! มีช่องไฟระหว่างหัว (Gap) {gap_check:.1f} cm (คลื่นกระจายตัวได้ดีเยี่ยม)")
-
-# ตัวเลือกการวัดระยะ
-measure_mode = st.radio("📏 รูปแบบการบอกระยะให้ช่าง:", ["กึ่งกลางถึงกึ่งกลาง (Center-to-Center)", "ขอบถึงขอบ (Edge-to-Edge)"], horizontal=True)
-
-b1, b2 = st.columns(2)
-b1.pyplot(draw_wall_blueprint(L, H_tank, water_level, is_right_wall=False, total_heads=heads_per_wall, measure_mode=measure_mode))
-b2.pyplot(draw_wall_blueprint(L, H_tank, water_level, is_right_wall=True, total_heads=(total_side_heads - heads_per_wall), measure_mode=measure_mode))
-
-st.markdown("<br><center><small>Developed for Custom Industrial Ultrasonic Cleaners</small></center>", unsafe_allow_html=True)
+st.sidebar.markdown("---")
+st.sidebar.header("⚙️ 2. เงื่อนไขและโหมดการล้าง")
+load_mode = st.sidebar.radio("รูปแบบการจัดวาง (Loading Mode)", ["ราวแขวน (Rack)", "ตะแกรง (Basket)"])
+part_width = st.sidebar.number_input("ความกว้างท่อ (cm)", value=20.0, step=1.0)
+use_chem = st.sidebar.checkbox("ใช้น้ำยาเคมี/กรด", value=True)
+heavy_load = st.sidebar.checkbox("คราบหนัก/ฟลักซ์", value=True)
 
 # ------------------------------------------
 # ส่วนที่ 1: ซิมูเลชันการห้อยชิ้นงาน
@@ -252,7 +227,6 @@ with col_sim2:
 with col_sim3:
     pitch_val = st.number_input("ระยะห่าง/ชิ้น (Pitch) cm", value=4.28, step=0.1)
 
-# คำนวณความยาว/กว้าง พวงชิ้นงานเพื่อเตือน
 bundle_len = (n_layers - 1) * pitch_val + 1
 bundle_w = (n_rows * part_width) + ((n_rows - 1) * 5)
 clearance = (W - bundle_w) / 2
@@ -262,7 +236,6 @@ if bundle_len > L or bundle_w > W:
 else:
     st.success(f"✅ ชิ้นงานลงถังได้พอดี (ระยะห่างผนังซ้ายขวาฝั่งละ {clearance:.1f} cm)")
 
-# แสดงกราฟิก
 st.subheader("📍 ภาพจำลองการจัดวางในถัง")
 g_top, g_side = st.columns(2)
 g_top.markdown("#### 👁️ มุมมองด้านบน (Top View)")
@@ -296,10 +269,20 @@ edited_df = st.data_editor(
     }
 )
 
-real_total_w = sum([row["Watts"] * row["Qty"] for _, row in edited_df.iterrows() if pd.notna(row["Watts"])])
+# คำนวณหัวและกำลังไฟทั้งหมด
+n_h28, n_h40, real_total_w = 0, 0, 0
+for _, row in edited_df.iterrows():
+    if pd.notna(row["Freq"]) and pd.notna(row["Watts"]) and pd.notna(row["Heads"]) and pd.notna(row["Qty"]):
+        f, w, h, q = row["Freq"], float(row["Watts"]), int(row["Heads"]), int(row["Qty"])
+        if f == 28:
+            n_h28 += (h * q)
+            real_total_w += (w * q)
+        elif f == 40:
+            n_h40 += (h * q)
+            real_total_w += (w * q)
+
 actual_density = real_total_w / vol if vol > 0 else 0
 
-# --- ระบบวิเคราะห์ความสะอาด ---
 st.subheader("🧪 บทสรุป: ประเมินความสะอาด (Cleanliness Prediction)")
 status = evaluate_cleanliness(actual_density, n_rows, load_mode, clearance)
 
@@ -310,7 +293,6 @@ elif status["color"] == "warning":
 else:
     st.error(f"{status['icon']} **{status['msg']}**")
 
-# แสดงผล W/L
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("💧 ปริมาตรน้ำ", f"{vol:.1f} L")
 c2.metric("⚡ กำลังไฟรวม", f"{real_total_w:.0f} W")
@@ -318,3 +300,34 @@ c3.metric(f"🎯 เป้า W/L (โหมด{load_mode.split(' ')[0]})", f"{f
 c4.metric("📊 W/L ของคุณ", f"{actual_density:.2f} W/L", delta=f"{actual_density - final_rec_density:.2f}")
 
 st.info(f"💡 **ค่าชดเชยการวาง (Stacking Factor): {k_stack}x** | การเพิ่มแถว หรือใช้ตะแกรง จะทำให้ค่านี้พุ่งสูงขึ้น เพราะคลื่นถูกบัง ต้องใช้ไฟแรงขึ้นเพื่อชดเชย")
+
+st.divider()
+
+# ------------------------------------------
+# ส่วนที่ 3: พิมพ์เขียวเจาะผนังถัง
+# ------------------------------------------
+st.header("📍 3. พิมพ์เขียวเจาะผนัง (Mounting Blueprint)")
+st.caption("ระบบคำนวณตำแหน่งเจาะรูอัตโนมัติ (Cross-fire Staggered Matrix) แยกซ้าย-ขวา เพื่อกันคลื่นชนกัน")
+
+total_side_heads = n_h28 + n_h40
+heads_per_wall = total_side_heads // 2
+
+# ตรวจสอบการชนกัน (Collision Check) ก่อนวาด
+transducer_dia_check = 4.8
+usable_L_check = L - 20 # หักขอบซ้ายขวา 10cm
+top_n_check = math.ceil(heads_per_wall / 2)
+pitch_check = usable_L_check / (top_n_check - 1) if top_n_check > 1 else usable_L_check
+gap_check = pitch_check - transducer_dia_check
+
+if gap_check < 0:
+    st.error(f"❌ **สร้างไม่ได้! ถังความยาว {L} cm สั้นเกินไป** หัวทรานสดิวเซอร์ (ขนาด 4.8 cm) จะเกยทับกัน แนะนำให้เพิ่มความยาวถังอย่างน้อยเป็น **{int((top_n_check-1)*(transducer_dia_check+1) + 20)} cm** หรือลดจำนวนหัวลงครับ")
+else:
+    st.success(f"✅ ติดตั้งได้! มีช่องไฟระหว่างหัว (Gap) {gap_check:.1f} cm (คลื่นกระจายตัวได้ดีเยี่ยม)")
+
+measure_mode = st.radio("📏 รูปแบบการบอกระยะให้ช่าง:", ["กึ่งกลางถึงกึ่งกลาง (Center-to-Center)", "ขอบถึงขอบ (Edge-to-Edge)"], horizontal=True)
+
+b1, b2 = st.columns(2)
+b1.pyplot(draw_wall_blueprint(L, H_tank, water_level, is_right_wall=False, total_heads=heads_per_wall, measure_mode=measure_mode))
+b2.pyplot(draw_wall_blueprint(L, H_tank, water_level, is_right_wall=True, total_heads=(total_side_heads - heads_per_wall), measure_mode=measure_mode))
+
+st.markdown("<br><center><small>Developed for Custom Industrial Ultrasonic Cleaners</small></center>", unsafe_allow_html=True)
