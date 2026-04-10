@@ -12,37 +12,47 @@ st.set_page_config(page_title="Ultrasonic Design Master", page_icon="⚙️", la
 # ==========================================
 # 2. HELPER FUNCTIONS
 # ==========================================
-def get_base_density(vol_liters, has_chem, heavy_load):
+def get_base_density(vol_liters, has_chem, has_heat, heavy_load):
+    # ค่ามาตรฐานสำหรับน้ำร้อน+เคมี
     if vol_liters <= 20: base_wl = 30.0
     elif vol_liters <= 50: base_wl = 25.0
     elif vol_liters <= 100: base_wl = 20.0
     elif vol_liters <= 190: base_wl = 12.0
     else: base_wl = 8.0 
-    if has_chem: base_wl *= 0.7
+    
+    # PENALTY: ถ้าไม่มีเคมี ต้องใช้พลังงานเพิ่ม 30% ทะลวงแรงตึงผิวน้ำ
+    if not has_chem: base_wl *= 1.3
+    # PENALTY: ถ้าไม่มีความร้อน (น้ำเย็น) คราบไม่ละลาย ต้องใช้พลังงานเพิ่ม 50%
+    if not has_heat: base_wl *= 1.5
+    
     if heavy_load: base_wl *= 1.15
     return round(base_wl, 2)
 
 def calculate_stacking_factor(pieces, rows, mode, is_nestable):
     base = 1.0
-    # ถ้าเป็นทึบ (ไม่ Nestable) เงาเสียงจะแรงกว่ามาก
     piece_penalty = 0.12 if is_nestable else 0.25
     piece_factor = math.log10(pieces) * piece_penalty if pieces > 1 else 0
     row_factor = (rows - 1) * 0.15 
     mode_penalty = 0.25 if mode == "ตะแกรง (Basket)" else 0.0 
     return round(base + row_factor + piece_factor + mode_penalty, 2)
 
-def evaluate_cleanliness(w_l, rows, mode, clearance, is_nestable):
+def evaluate_cleanliness(w_l, rows, mode, clearance, is_nestable, has_heat, has_chem):
     status = {"icon": "", "msg": "", "color": "normal"}
+    
+    if not has_heat and not has_chem:
+        status = {"icon": "⚠️", "msg": "คำเตือนวิกฤต: การใช้น้ำเปล่าอุณหภูมิห้อง คราบฟลักซ์และน้ำมันจะไม่ละลาย พลังงาน W/L ต้องสูงมากถึงจะดันคราบออกได้", "color": "error"}
+        return status
+        
     if clearance < 5:
         return {"icon": "🔴", "msg": "คำเตือน: ระยะห่างผนังน้อยกว่า 5 ซม. เสี่ยงที่คลื่นจะกระแทกผิวชิ้นงานจนเกิดรอย", "color": "error"}
         
     if mode == "ราวแขวน (Rack)":
         if rows > 2:
             status = {"icon": "⚠️", "msg": "ความเสี่ยง: ชิ้นงานแถวกลางอาจล้างไม่สะอาดเนื่องจากถูกบังคลื่น (Shadowing Effect)", "color": "warning"}
-        elif not is_nestable and w_l < 15:
-             status = {"icon": "🟡", "msg": "ชิ้นงานทึบวางซ้อนกัน ต้องการพลังงานสูงกว่าปกติ อาจต้องเพิ่มเวลาล้าง", "color": "warning"}
+        elif w_l >= 15:
+            status = {"icon": "🟢", "msg": "ประสิทธิภาพเยี่ยมยอด: พลังงานสูงพอทะลวงรูในและคราบหนักได้สบาย", "color": "success"}
         elif w_l >= 10:
-            status = {"icon": "🟢", "msg": "ประสิทธิภาพดีเยี่ยม: คลื่นกระจายตัวและแทรกซึมได้ดี", "color": "success"}
+            status = {"icon": "🟢", "msg": "ประสิทธิภาพดี: คลื่นกระจายตัวและแทรกซึมได้ดี", "color": "success"}
         elif w_l >= 8:
             status = {"icon": "🟡", "msg": "ประสิทธิภาพปานกลาง: แนะนำให้ใช้ระบบเขย่าชิ้นงาน (Oscillation) ช่วย", "color": "warning"}
         else:
@@ -57,11 +67,11 @@ def evaluate_cleanliness(w_l, rows, mode, clearance, is_nestable):
     return status
 
 # ---- ฟังก์ชันวาดซิมูเลชัน ----
-def draw_simulation(L, W, H, water_level, part_w, part_h, n_parts, pitch, rows, mode, is_nestable, view="top"):
+def draw_simulation(L, W, H, water_level, part_w, part_h, tube_dia, n_parts, pitch, rows, mode, is_nestable, view="top"):
     fig, ax = plt.subplots(figsize=(8, 4))
     
-    # ถ้าไม่ nestable ให้ความหนาชิ้นงาน = pitch ไปเลย (ต่อกันทึบ)
-    thickness = 1.0 if is_nestable else pitch
+    # ความหนาชิ้นงานใช้จาก tube_dia ที่กรอกมา
+    thickness = tube_dia if is_nestable else pitch
     bundle_length = (n_parts - 1) * pitch + thickness 
     margin_x = (L - bundle_length) / 2
     row_gap = 5 
@@ -75,11 +85,9 @@ def draw_simulation(L, W, H, water_level, part_w, part_h, n_parts, pitch, rows, 
         if mode == "ตะแกรง (Basket)":
             basket_margin = 5
             ax.add_patch(patches.Rectangle((basket_margin, basket_margin), L - 10, W - 10, fc='none', ec='#757575', lw=2, linestyle='--'))
-            ax.text(10, 10, "Wire Mesh Basket", color='#757575', fontsize=8)
 
         for r in range(rows):
             y_start = margin_y_start + (r * (part_w + row_gap))
-            
             if mode == "ราวแขวน (Rack)":
                 ax.axhline(y=(y_start + (part_w/2)), color='#9e9e9e', linestyle='-.', lw=1) 
                 
@@ -124,7 +132,6 @@ def draw_simulation(L, W, H, water_level, part_w, part_h, n_parts, pitch, rows, 
     ax.axis('off')
     return fig
 
-# ฟังก์ชันวาดระยะติดตั้งหัว (แก้ปัญหาตกขอบ & จัดกลาง)
 def draw_wall_blueprint(L, H, water_level, is_right_wall, total_heads, measure_mode):
     fig, ax = plt.subplots(figsize=(10, 5))
     title = f"Right Wall Layout ({total_heads} Heads)" if is_right_wall else f"Left Wall Layout ({total_heads} Heads)"
@@ -144,13 +151,11 @@ def draw_wall_blueprint(L, H, water_level, is_right_wall, total_heads, measure_m
         top_n = math.ceil(total_heads / 2)
         bot_n = total_heads - top_n
         
-        # คำนวณ Pitch โดยจำกัด Gap ไม่ให้เกิน 70mm (Pitch ไม่เกิน 11.8cm)
-        max_pitch = 11.8 
-        min_pitch = transducer_dia + 2.0 # Gap อย่างน้อย 20mm
+        # 🎯 Optimal Gap Control: 20mm (2.0cm) - 60mm (6.0cm)
+        max_pitch = transducer_dia + 6.0 
         
         calculated_pitch = usable_L / (top_n - 1) if top_n > 1 else usable_L
         
-        # ถ้าระยะห่างมากเกินไป ให้ใช้ max_pitch แล้วจัดให้อยู่กึ่งกลาง
         if calculated_pitch > max_pitch:
             actual_pitch = max_pitch
             occupied_L = actual_pitch * (top_n - 1)
@@ -171,7 +176,7 @@ def draw_wall_blueprint(L, H, water_level, is_right_wall, total_heads, measure_m
             top_coords, bottom_coords = x_top_base, x_bot_base
             c_node = '#1976d2'
 
-        if gap < 2.0: c_node = '#d32f2f' # สีแดงถ้าติดกันเกินไป
+        if gap < 2.0: c_node = '#d32f2f' 
 
         for x in top_coords:
             ax.add_patch(plt.Circle((x, y_top), transducer_dia/2, color=c_node, ec='white', lw=1.5, alpha=0.8))
@@ -221,13 +226,16 @@ st.sidebar.header("2. เงื่อนไขและโหมดการล�
 load_mode = st.sidebar.radio("รูปแบบการจัดวาง (Loading Mode)", ["ราวแขวน (Rack)", "ตะแกรง (Basket)"])
 
 st.sidebar.subheader("ขนาดชิ้นงาน (Part Dimension)")
-col_p1, col_p2 = st.sidebar.columns(2)
+col_p1, col_p2, col_p3 = st.sidebar.columns(3)
 with col_p1: part_w = st.number_input("กว้าง (cm)", value=20.0, step=1.0)
 with col_p2: part_h = st.number_input("สูง (cm)", value=28.0, step=1.0)
+with col_p3: tube_dia = st.number_input("ไดมิเตอร์ท่อ (OD) cm", value=1.0, step=0.1, help="ความหนาของเส้นท่อ (เช่น ท่อ 10mm = 1.0 cm)")
 
-is_nestable = st.sidebar.checkbox("สามารถวางซ้อนเหลื่อมกันได้ (Nestable)", value=True, help="ติ๊กถูกหากชิ้นงานเป็นท่อดัดที่นำมาเกี่ยวซ้อนขบกันได้ (ช่วยประหยัดพื้นที่) หากเป็นชิ้นงานทึบตันให้นำติ๊กออก")
-use_chem = st.sidebar.checkbox("ใช้น้ำยาเคมี/กรด", value=True)
-heavy_load = st.sidebar.checkbox("คราบหนัก/ฟลักซ์", value=True)
+is_nestable = st.sidebar.checkbox("วางซ้อนเหลื่อมกันได้ (Nestable)", value=True)
+st.sidebar.caption("ตัวแปรความร้อนและเคมี (มีผลต่อความต้องการพลังงานอย่างมาก):")
+use_heat = st.sidebar.checkbox("ต้มน้ำร้อน (50-70°C)", value=False)
+use_chem = st.sidebar.checkbox("ใช้น้ำยาเคมีอัลตราโซนิก", value=False)
+heavy_load = st.sidebar.checkbox("ล้างคราบหนัก/ฟลักซ์", value=True)
 
 # ------------------------------------------
 # ส่วนที่ 1: ซิมูเลชันการห้อยชิ้นงาน
@@ -238,16 +246,16 @@ col_sim1, col_sim2, col_sim3 = st.columns(3)
 with col_sim1:
     n_layers = st.number_input("จำนวนชิ้นงาน/แถว", min_value=1, value=25, step=1)
 with col_sim2:
-    n_rows = st.number_input("จำนวนแถว (Rows)", min_value=1, value=2, step=1)
+    n_rows = st.number_input("จำนวนแถว (Rows)", min_value=1, value=1, step=1)
 with col_sim3:
     if is_nestable:
-        pitch_val = st.number_input("ระยะ Pitch (cm)", value=4.28, step=0.1, help="ระยะจากกึ่งกลางท่อ ถึง กึ่งกลางท่อ")
+        pitch_val = st.number_input("ระยะ Pitch (cm)", value=4.3, step=0.1, help="ระยะจาก กึ่งกลางท่อ ถึง กึ่งกลางท่อ (เช่น ช่องว่าง 3.3 + ท่อ 1.0 = Pitch 4.3)")
     else:
-        st.info("ชิ้นงานทึบ: ถูกล็อกระยะ Pitch ตามความหนา")
-        pitch_val = st.number_input("ความหนาชิ้นงาน (cm)", value=5.0, step=0.5)
+        st.info("โหมดชิ้นงานทึบ")
+        pitch_val = tube_dia
 
-# คำนวณความยาว/กว้าง
-thickness = 1.0 if is_nestable else pitch_val
+# คำนวณ
+thickness = tube_dia if is_nestable else pitch_val
 bundle_len = (n_layers - 1) * pitch_val + thickness 
 bundle_w = (n_rows * part_w) + ((n_rows - 1) * 5)
 clearance = (W - bundle_w) / 2
@@ -257,13 +265,9 @@ if bundle_len > L or bundle_w > W:
 else:
     st.success(f"ระยะห่างจากผนังซ้าย-ขวาปลอดภัย ({clearance:.1f} cm)")
 
-st.subheader("ภาพจำลองการจัดวางในถัง", help="แสดงความหนาแน่นของการวางชิ้นงาน เพื่อประเมินการแทรกซึมของคลื่นอัลตราโซนิก")
 g_top, g_side = st.columns(2)
-g_top.markdown("#### มุมมองด้านบน (Top View)")
-g_top.pyplot(draw_simulation(L, W, H_tank, water_level, part_w, part_h, n_layers, pitch_val, n_rows, load_mode, is_nestable, view="top"))
-
-g_side.markdown("#### มุมมองด้านข้าง (Side View)")
-g_side.pyplot(draw_simulation(L, W, H_tank, water_level, part_w, part_h, n_layers, pitch_val, n_rows, load_mode, is_nestable, view="side"))
+g_top.pyplot(draw_simulation(L, W, H_tank, water_level, part_w, part_h, tube_dia, n_layers, pitch_val, n_rows, load_mode, is_nestable, view="top"))
+g_side.pyplot(draw_simulation(L, W, H_tank, water_level, part_w, part_h, tube_dia, n_layers, pitch_val, n_rows, load_mode, is_nestable, view="side"))
 
 st.divider()
 
@@ -273,7 +277,7 @@ st.divider()
 st.header("2. คำนวณกำลังไฟบอร์ดอัลตราโซนิก (Power Evaluation)")
 
 vol = (L * W * water_level) / 1000
-base_density = get_base_density(vol, use_chem, heavy_load)
+base_density = get_base_density(vol, use_chem, use_heat, heavy_load)
 k_stack = calculate_stacking_factor(n_layers, n_rows, load_mode, is_nestable)
 final_rec_density = round(base_density * k_stack, 2)
 
@@ -294,17 +298,14 @@ n_h28, n_h40, real_total_w = 0, 0, 0
 for _, row in edited_df.iterrows():
     if pd.notna(row["Freq"]) and pd.notna(row["Watts"]) and pd.notna(row["Heads"]) and pd.notna(row["Qty"]):
         f, w, h, q = row["Freq"], float(row["Watts"]), int(row["Heads"]), int(row["Qty"])
-        if f == 28:
-            n_h28 += (h * q)
-            real_total_w += (w * q)
-        elif f == 40:
+        if f == 40:
             n_h40 += (h * q)
             real_total_w += (w * q)
 
 actual_density = real_total_w / vol if vol > 0 else 0
 
 st.subheader("บทสรุป: ประเมินความสะอาด (Cleanliness Prediction)")
-status = evaluate_cleanliness(actual_density, n_rows, load_mode, clearance, is_nestable)
+status = evaluate_cleanliness(actual_density, n_rows, load_mode, clearance, is_nestable, use_heat, use_chem)
 
 if status["color"] == "success":
     st.success(f"{status['icon']} **{status['msg']}**")
@@ -316,8 +317,8 @@ else:
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("ปริมาตรน้ำ", f"{vol:.1f} L")
 c2.metric("กำลังไฟรวม", f"{real_total_w:.0f} W")
-c3.metric(f"เป้า W/L", f"{final_rec_density} W/L")
-c4.metric("W/L ของระบบ", f"{actual_density:.2f} W/L", delta=f"{actual_density - final_rec_density:.2f}")
+c3.metric(f"เป้า W/L ที่ต้องการ", f"{final_rec_density} W/L")
+c4.metric("W/L ของระบบคุณ", f"{actual_density:.2f} W/L", delta=f"{actual_density - final_rec_density:.2f}")
 
 st.divider()
 
@@ -325,9 +326,9 @@ st.divider()
 # ส่วนที่ 3: ระยะการติดตั้ง (Mounting Blueprint)
 # ------------------------------------------
 st.header("3. ระยะการติดตั้งหัวทรานสดิวเซอร์ (Mounting Layout)")
-st.caption("ระบบคำนวณตำแหน่งเจาะรูอัตโนมัติ (Cross-fire Staggered Matrix) ล็อกระยะ Gap ให้อยู่ในช่วง 20-70mm")
+st.info("💡 Optimal Gap: ระยะห่างขอบหัวที่ดีที่สุดคือ 2.0 ถึง 6.0 cm (ระบบจะจัดระยะให้อยู่ในเกณฑ์นี้อัตโนมัติ)")
 
-total_side_heads = n_h28 + n_h40
+total_side_heads = n_h40 
 heads_per_wall = total_side_heads // 2
 
 transducer_dia_check = 4.8
@@ -338,9 +339,7 @@ gap_check = pitch_check - transducer_dia_check
 
 if gap_check < 2.0:
     min_length_required = int((top_n_check-1)*(transducer_dia_check+2.0) + 10)
-    st.error(f"สร้างไม่ได้: ถังความยาว {L} cm สั้นเกินไป หัวทรานสดิวเซอร์จะชิดกันเกินไป แนะนำให้เพิ่มความยาวถังอย่างน้อยเป็น {min_length_required} cm")
-else:
-    st.success(f"สามารถติดตั้งได้")
+    st.error(f"สร้างไม่ได้: ถังความยาว {L} cm สั้นเกินไป แนะนำให้ขยายถังอย่างน้อยเป็น {min_length_required} cm")
 
 measure_mode = st.radio("รูปแบบการบอกระยะให้ช่าง:", ["กึ่งกลางถึงกึ่งกลาง (Center-to-Center)", "ขอบถึงขอบ (Edge-to-Edge)"], horizontal=True)
 
