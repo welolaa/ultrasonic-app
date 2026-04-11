@@ -12,19 +12,19 @@ st.set_page_config(page_title="Ultrasonic Design Master", page_icon="💎", layo
 # ==========================================
 # 2. HELPER FUNCTIONS (ฟังก์ชันคำนวณ)
 # ==========================================
-def get_base_density(vol_liters, has_chem, has_heat):
+def get_base_density(vol_liters, has_heat):
     # ค่ามาตรฐาน P_base (W/L) ตามขนาดปริมาตรถัง 
     if vol_liters <= 50: base_wl = 25.0
     elif vol_liters <= 100: base_wl = 18.0
     elif vol_liters <= 150: base_wl = 14.0 
     else: base_wl = 10.0 
     
-    # Material Load Factor: ล้างสารคัดหลั่งทั่วไปใช้ 0.85 (ไม่ใช่ฟลักซ์เหนียว)
-    k_mat = 1.15 if has_chem else 0.85 
+    # Material Load Factor: ล้างสารคัดหลั่งทั่วไป/ฝุ่นบนทองแดง ใช้ 0.85
+    k_mat = 0.85 
     
-    # Penalty: น้ำเปล่าและน้ำเย็น (ต้องการแรงกระแทกจากคลื่นเพียวๆ)
-    k_penalty = 1.0
-    if not has_chem: k_penalty *= 1.3
+    # Penalty: บังคับใช้น้ำเปล่า (ต้องการแรงกระแทกจากคลื่นเพียวๆ = 1.3)
+    k_penalty = 1.3
+    # ถ้าน้ำเย็น (ไม่ต้ม) คราบโปรตีน/ไขมันจะเกาะแน่น ต้องเพิ่มแรงกระแทกอีก
     if not has_heat: k_penalty *= 1.3
     
     return round(base_wl * k_mat * k_penalty, 2)
@@ -49,7 +49,7 @@ def draw_simulation(L, W, H, water_level, part_w, part_h, tube_dia, n_parts, pit
     total_bundle_w = (rows * part_w) + ((rows - 1) * row_gap)
     margin_y_start = (W - total_bundle_w) / 2
     
-    # Auto-Zoom Limit ป้องกันภาพหายเมื่อชิ้นงานล้นถัง
+    # Auto-Zoom Limit 
     min_x = min(-10, margin_x - 10)
     max_x = max(L + 10, margin_x + bundle_length + 10)
     
@@ -80,7 +80,7 @@ def draw_simulation(L, W, H, water_level, part_w, part_h, tube_dia, n_parts, pit
         ax.add_patch(patches.Rectangle((0, 0), L, water_level, fc='#d6eaf8', alpha=0.7))
         ax.axhline(y=water_level, color='#2980b9', linestyle='--', lw=2)
         
-        tube_top_y = water_level - 3 # จมใต้ผิวน้ำ 3 cm เสมอ
+        tube_top_y = water_level - 3 
         base_y = tube_top_y - part_h
         
         if mode == "ตะแกรง (Basket)":
@@ -89,12 +89,12 @@ def draw_simulation(L, W, H, water_level, part_w, part_h, tube_dia, n_parts, pit
             tube_top_y = base_y + part_h
         else:
             rack_y = H + 2
-            ax.axhline(y=rack_y, color='#7f8c8d', linestyle='-', lw=4) # ราวหลัก
+            ax.axhline(y=rack_y, color='#7f8c8d', linestyle='-', lw=4) 
             
         for r in range(rows):
             offset_y = r * 1.5 
             for i in range(n_parts):
-                center_x = margin_x + i * pitch + (thickness/2) + (r * 1.0) # เหลื่อมแถวให้เห็นมิติ
+                center_x = margin_x + i * pitch + (thickness/2) + (r * 1.0) 
                 color = '#e74c3c' if center_x < 0 or center_x > L else '#3498db'
                 
                 if mode == "ราวแขวน (Rack)":
@@ -125,7 +125,6 @@ def draw_wall_blueprint(L, H, water_level, is_right_wall, total_heads, measure_m
         usable_L = L - (margin * 2)
         pitch = usable_L / (top_n - 1) if top_n > 1 else usable_L
         
-        # ถ้าระยะห่างมากไป ให้จัดกึ่งกลาง (Center Alignment)
         if pitch > 12.0:
             pitch = 12.0
             usable_L = pitch * (top_n - 1)
@@ -138,12 +137,11 @@ def draw_wall_blueprint(L, H, water_level, is_right_wall, total_heads, measure_m
         x_bot = [margin + (pitch/2) + (i * pitch) for i in range(bot_n)] if bot_n > 0 else []
         
         color_node = '#3498db' if not is_right_wall else '#f39c12'
-        if gap < 2.0: color_node = '#e74c3c' # แดงเตือนถ้า Overlap
+        if gap < 2.0: color_node = '#e74c3c' 
         
         for x in x_top: ax.add_patch(plt.Circle((x, y_top), trans_dia/2, color=color_node, ec='white', lw=1.5, alpha=0.9))
         for x in x_bot: ax.add_patch(plt.Circle((x, y_bot), trans_dia/2, color=color_node, ec='white', lw=1.5, alpha=0.9))
         
-        # วาดเส้นบอกระยะ (Dimension Lines)
         if not is_right_wall and top_n > 1:
             ax.annotate('', xy=(x_top[0], y_top), xytext=(x_top[1], y_top), arrowprops=dict(arrowstyle='<->', color='#27ae60', lw=1.5))
             label = f'Pitch {pitch:.1f} cm' if measure_mode == "กึ่งกลางถึงกึ่งกลาง (Center-to-Center)" else f'Gap {gap:.1f} cm'
@@ -157,8 +155,8 @@ def draw_wall_blueprint(L, H, water_level, is_right_wall, total_heads, measure_m
 # ==========================================
 # 4. MAIN APP LAYOUT (หน้า UI)
 # ==========================================
-st.title("💎 Ultrasonic Cleaner Design Tool (Ultimate Edition)")
-st.caption("ระบบออกแบบวิศวกรรมถังล้างอัลตราโซนิก (รองรับการล้างน้ำเปล่าสารคัดหลั่ง)")
+st.title("💎 Ultrasonic Cleaner Design Tool (Water-Only Edition)")
+st.caption("ระบบออกแบบถังล้างอัลตราโซนิก (ปรับจูนเฉพาะสำหรับการล้างด้วยน้ำเปล่า)")
 
 # --- Sidebar Inputs ---
 with st.sidebar:
@@ -177,16 +175,15 @@ with st.sidebar:
     tube_dia = col_p3.number_input("หนาท่อ (cm)", value=1.0, step=0.1)
     
     st.divider()
-    st.header("🧪 3. สภาพแวดล้อมน้ำยา")
+    st.header("🧪 3. สภาพแวดล้อมน้ำ")
     is_nestable = st.checkbox("วางซ้อนเหลื่อมกันได้ (Nestable)", value=True, help="ติ๊กถูกหากเป็นท่อที่วางซ้อนขบกันได้")
-    use_heat = st.checkbox("ต้มน้ำร้อน (50-70°C)", value=False, help="ความร้อนช่วยเพิ่มพลังการทำลายล้างของ Cavitation")
-    use_chem = st.checkbox("ใช้สารเคมี (เช่น ล้างฟลักซ์)", value=False, help="เอาออกหากต้องการล้างน้ำเปล่าสำหรับคราบสารคัดหลั่ง")
+    use_heat = st.checkbox("ต้มน้ำร้อน (50-70°C)", value=False, help="ความร้อนช่วยเพิ่มพลังทำลายล้างของ Cavitation ในน้ำเปล่า")
+    st.info("ℹ️ ระบบล็อกโหมดการทำงานเป็น 'ล้างด้วยน้ำเปล่า 100%'")
 
 # ------------------------------------------
 # ส่วนที่ 1: Simulation
 # ------------------------------------------
 st.header("🔍 1. จำลองการจัดเรียงชิ้นงาน (Layout Simulation)")
-st.info("💡 **Tip:** ชิ้นงานสีแดงหมายถึงล้นออกนอกถัง กรุณาปรับระยะ Pitch หรือความยาวถัง")
 
 col_sim1, col_sim2, col_sim3 = st.columns(3)
 n_layers = col_sim1.number_input("จำนวนชิ้นงาน/แถว (ชิ้น)", min_value=1, value=25, step=1)
@@ -213,7 +210,7 @@ st.divider()
 # ------------------------------------------
 st.header("⚡ 2. คำนวณกำลังงานอัลตราโซนิก (Power Evaluation)")
 vol = (L * W * water_level) / 1000
-target_p_base = get_base_density(vol, use_chem, use_heat)
+target_p_base = get_base_density(vol, use_heat)
 k_stack = calculate_stacking_factor(n_layers, n_rows, load_mode, is_nestable)
 target_wl = round(target_p_base * k_stack, 2)
 
@@ -221,8 +218,8 @@ with st.expander("ℹ️ ดูสมการที่มาของการ�
     st.latex(r"T_{final} = P_{base} \times K_{mat} \times K_{penalty} \times K_{stack}")
     st.markdown(f"""
     - **P_base:** กำลังไฟพื้นฐานจากปริมาตรถัง ({vol:.1f} ลิตร)
-    - **K_mat (Material Factor):** ทองแดง = 0.85 (ล้างทั่วไป) หรือ 1.15 (ถ้าใช้เคมีล้างฟลักซ์)
-    - **K_penalty:** ชดเชยกรณี **ใช้น้ำเปล่า+น้ำเย็น** (แรงตึงผิวสูง คลื่นทำโพรงอากาศยาก)
+    - **K_mat (Material Factor):** ทองแดง = 0.85 (คำนวณสำหรับการล้างฝุ่น/สารคัดหลั่งทั่วไป)
+    - **K_penalty:** ชดเชยกรณี **น้ำเปล่า 100%** (ล็อกค่าที่ 1.3 เท่า เพื่อชดเชยสารเคมีที่หายไป)
     - **K_stack (Stacking Factor):** `{k_stack}x` (ชดเชยการซ้อนทับ {n_layers} ชิ้น และแถว {n_rows} แถว)
     """)
 
@@ -247,7 +244,7 @@ c4.metric("📊 W/L ของระบบคุณ", f"{actual_wl:.2f} W/L", del
 if actual_wl >= target_wl:
     st.success("🟢 พลังงานเพียงพอ: กำลังไฟสามารถทะลวงคราบสารคัดหลั่งในน้ำเปล่าได้ตามมาตรฐาน")
 elif actual_wl >= target_wl * 0.8:
-    st.warning("🟡 พลังงานปานกลาง: อาจต้องเพิ่มเวลาแช่หรือใช้ระบบเขย่า (Oscillation) เข้าช่วย")
+    st.warning("🟡 พลังงานปานกลาง: อาจต้องเพิ่มเวลาแช่หรือเปิดน้ำร้อนเข้าช่วย")
 else:
     st.error("🔴 พลังงานไม่เพียงพอ: คลื่นอัลตราโซนิกอาจอ่อนเกินไป แนะนำให้เพิ่มแผงวงจรหรือลดชิ้นงานลง")
 
@@ -265,4 +262,4 @@ b_l, b_r = st.columns(2)
 b_l.pyplot(draw_wall_blueprint(L, H_tank, water_level, False, heads_per_side, measure_mode))
 b_r.pyplot(draw_wall_blueprint(L, H_tank, water_level, True, heads_per_side, measure_mode))
 
-st.markdown("<br><center><small>💎 Developed for Custom Industrial Ultrasonic Cleaners 💎</small></center>", unsafe_allow_html=True)
+st.markdown("<br><center><small>💎 Custom Engineered for Water-Only Ultrasonic Cleaning 💎</small></center>", unsafe_allow_html=True)
