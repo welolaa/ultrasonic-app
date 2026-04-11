@@ -10,35 +10,35 @@ import pandas as pd
 st.set_page_config(page_title="Ultrasonic Design Master", page_icon="💎", layout="wide")
 
 # ==========================================
-# 2. HELPER FUNCTIONS (ฟังก์ชันคำนวณ)
+# 2. HELPER FUNCTIONS (ปรับจูนสมการให้สมจริงขึ้น)
 # ==========================================
 def get_base_density(vol_liters, has_heat):
-    # ค่ามาตรฐาน P_base (W/L) ตามขนาดปริมาตรถัง 
     if vol_liters <= 50: base_wl = 25.0
     elif vol_liters <= 100: base_wl = 18.0
-    elif vol_liters <= 150: base_wl = 14.0 
+    elif vol_liters <= 150: base_wl = 14.0 # ถังคุณริก 120L ฐานอยู่ที่ 14 W/L
     else: base_wl = 10.0 
     
-    # Material Load Factor: ล้างสารคัดหลั่งทั่วไป/ฝุ่นบนทองแดง ใช้ 0.85
+    # Material Load: ล้างน้ำเปล่าคราบสารคัดหลั่ง 
     k_mat = 0.85 
     
-    # Penalty: บังคับใช้น้ำเปล่า (ต้องการแรงกระแทกจากคลื่นเพียวๆ = 1.3)
-    k_penalty = 1.3
-    # ถ้าน้ำเย็น (ไม่ต้ม) คราบโปรตีน/ไขมันจะเกาะแน่น ต้องเพิ่มแรงกระแทกอีก
-    if not has_heat: k_penalty *= 1.3
+    # Penalty: น้ำเปล่า (ปรับความดุร้ายของสมการลง ให้สะท้อนความจริง)
+    k_penalty = 1.15 # ชดเชยการไม่มีเคมี (+15%)
+    if not has_heat: 
+        k_penalty *= 1.15 # ชดเชยน้ำเย็น (+15%)
     
     return round(base_wl * k_mat * k_penalty, 2)
 
 def calculate_stacking_factor(pieces, rows, load_mode, is_nestable):
     base = 1.0
-    piece_penalty = 0.08 if is_nestable else 0.20
+    # ปรับลดตัวคูณการบังคลื่นลง เพราะคลื่น 40kHz แทรกซึมได้ดี
+    piece_penalty = 0.05 if is_nestable else 0.15
     piece_factor = math.log10(pieces) * piece_penalty if pieces > 1 else 0
-    row_factor = (rows - 1) * 0.15 
-    basket_penalty = 0.25 if load_mode == "ตะแกรง (Basket)" else 0.0
+    row_factor = (rows - 1) * 0.10 
+    basket_penalty = 0.20 if load_mode == "ตะแกรง (Basket)" else 0.0
     return round(base + row_factor + piece_factor + basket_penalty, 2)
 
 # ==========================================
-# 3. GRAPHICS FUNCTIONS (ฟังก์ชันวาดภาพ)
+# 3. GRAPHICS FUNCTIONS 
 # ==========================================
 def draw_simulation(L, W, H, water_level, part_w, part_h, tube_dia, n_parts, pitch, rows, mode, is_nestable, view="top"):
     fig, ax = plt.subplots(figsize=(10, 5))
@@ -49,7 +49,6 @@ def draw_simulation(L, W, H, water_level, part_w, part_h, tube_dia, n_parts, pit
     total_bundle_w = (rows * part_w) + ((rows - 1) * row_gap)
     margin_y_start = (W - total_bundle_w) / 2
     
-    # Auto-Zoom Limit 
     min_x = min(-10, margin_x - 10)
     max_x = max(L + 10, margin_x + bundle_length + 10)
     
@@ -59,7 +58,6 @@ def draw_simulation(L, W, H, water_level, part_w, part_h, tube_dia, n_parts, pit
         
         if mode == "ตะแกรง (Basket)":
             ax.add_patch(patches.Rectangle((5, 5), L - 10, W - 10, fc='none', ec='#7f8c8d', lw=2, linestyle='--'))
-            ax.text(10, 10, "Wire Mesh Basket", color='#7f8c8d', fontsize=10, weight='bold')
 
         for r in range(rows):
             y_start = margin_y_start + (r * (part_w + row_gap))
@@ -156,29 +154,29 @@ def draw_wall_blueprint(L, H, water_level, is_right_wall, total_heads, measure_m
 # 4. MAIN APP LAYOUT (หน้า UI)
 # ==========================================
 st.title("💎 Ultrasonic Cleaner Design Tool (Water-Only Edition)")
-st.caption("ระบบออกแบบถังล้างอัลตราโซนิก (ปรับจูนเฉพาะสำหรับการล้างด้วยน้ำเปล่า)")
+st.caption("ระบบประเมินกำลังไฟแบบสมจริง (Realistic Power Tuning)")
 
 # --- Sidebar Inputs ---
 with st.sidebar:
     st.header("📐 1. ข้อมูลถัง (Tank Dimensions)")
     L = st.number_input("ความยาวถัง (L) cm", value=100.0, step=1.0)
     W = st.number_input("ความกว้างถัง (W) cm", value=40.0, step=1.0)
-    H_tank = st.number_input("ความสูงถัง (H) cm", value=45.0, step=1.0)
+    H_tank = st.number_input("ความสูงถัง (H) cm", value=60.0, step=1.0)
     water_level = st.number_input("ระดับน้ำ (cm)", value=30.0, step=1.0)
     
     st.divider()
     st.header("⚙️ 2. ข้อมูลชิ้นงานและโหมด")
     load_mode = st.radio("รูปแบบการจัดวาง", ["ราวแขวน (Rack)", "ตะแกรง (Basket)"])
     col_p1, col_p2, col_p3 = st.columns(3)
-    part_w = col_p1.number_input("กว้าง (cm)", value=20.0, step=1.0)
+    part_w = col_p1.number_input("กว้าง (cm)", value=25.0, step=1.0)
     part_h = col_p2.number_input("สูง (cm)", value=28.0, step=1.0)
     tube_dia = col_p3.number_input("หนาท่อ (cm)", value=1.0, step=0.1)
     
     st.divider()
     st.header("🧪 3. สภาพแวดล้อมน้ำ")
-    is_nestable = st.checkbox("วางซ้อนเหลื่อมกันได้ (Nestable)", value=True, help="ติ๊กถูกหากเป็นท่อที่วางซ้อนขบกันได้")
-    use_heat = st.checkbox("ต้มน้ำร้อน (50-70°C)", value=False, help="ความร้อนช่วยเพิ่มพลังทำลายล้างของ Cavitation ในน้ำเปล่า")
-    st.info("ℹ️ ระบบล็อกโหมดการทำงานเป็น 'ล้างด้วยน้ำเปล่า 100%'")
+    is_nestable = st.checkbox("วางซ้อนเหลื่อมกันได้ (Nestable)", value=True)
+    use_heat = st.checkbox("ต้มน้ำร้อน (50-70°C)", value=False)
+    st.info("ℹ️ โหมดน้ำเปล่า 100%")
 
 # ------------------------------------------
 # ส่วนที่ 1: Simulation
@@ -188,16 +186,11 @@ st.header("🔍 1. จำลองการจัดเรียงชิ้น�
 col_sim1, col_sim2, col_sim3 = st.columns(3)
 n_layers = col_sim1.number_input("จำนวนชิ้นงาน/แถว (ชิ้น)", min_value=1, value=25, step=1)
 n_rows = col_sim2.number_input("จำนวนแถว (Rows)", min_value=1, value=1, step=1)
-pitch_val = col_sim3.number_input("ระยะ Pitch (cm)", value=4.3, step=0.1, help="ระยะ Pitch = ช่องว่าง (Gap) + ความหนาท่อ")
+pitch_val = col_sim3.number_input("ระยะ Pitch (cm)", value=4.3, step=0.1)
 
 bundle_len = (n_layers - 1) * pitch_val + tube_dia
 bundle_w = (n_rows * part_w) + ((n_rows - 1) * 6)
 clearance = (W - bundle_w) / 2
-
-if bundle_len > L or bundle_w > W:
-    st.error(f"⚠️ ชิ้นงานล้นถัง! ต้องการพื้นที่ กว้าง {bundle_w:.1f} x ยาว {bundle_len:.1f} cm")
-else:
-    st.success(f"✅ ชิ้นงานลงถังได้พอดี (ระยะห่างผนังซ้ายขวาฝั่งละ {clearance:.1f} cm)")
 
 g_top, g_side = st.columns(2)
 g_top.pyplot(draw_simulation(L, W, H_tank, water_level, part_w, part_h, tube_dia, n_layers, pitch_val, n_rows, load_mode, is_nestable, "top"))
@@ -208,29 +201,17 @@ st.divider()
 # ------------------------------------------
 # ส่วนที่ 2: Power Calculation
 # ------------------------------------------
-st.header("⚡ 2. คำนวณกำลังงานอัลตราโซนิก (Power Evaluation)")
+st.header("⚡ 2. คำนวณกำลังงาน (Time vs Power Evaluation)")
 vol = (L * W * water_level) / 1000
 target_p_base = get_base_density(vol, use_heat)
 k_stack = calculate_stacking_factor(n_layers, n_rows, load_mode, is_nestable)
 target_wl = round(target_p_base * k_stack, 2)
 
-with st.expander("ℹ️ ดูสมการที่มาของการคำนวณ (Engineering Formula)"):
-    st.latex(r"T_{final} = P_{base} \times K_{mat} \times K_{penalty} \times K_{stack}")
-    st.markdown(f"""
-    - **P_base:** กำลังไฟพื้นฐานจากปริมาตรถัง ({vol:.1f} ลิตร)
-    - **K_mat (Material Factor):** ทองแดง = 0.85 (คำนวณสำหรับการล้างฝุ่น/สารคัดหลั่งทั่วไป)
-    - **K_penalty:** ชดเชยกรณี **น้ำเปล่า 100%** (ล็อกค่าที่ 1.3 เท่า เพื่อชดเชยสารเคมีที่หายไป)
-    - **K_stack (Stacking Factor):** `{k_stack}x` (ชดเชยการซ้อนทับ {n_layers} ชิ้น และแถว {n_rows} แถว)
-    """)
-
-# Data Editor สำหรับแผงวงจร
-st.subheader("แผงวงจรและจำนวนหัวเจาะ (Generator & Transducers)")
 if 'board_list' not in st.session_state:
     st.session_state.board_list = pd.DataFrame({"Freq (kHz)": [40], "Watts/บอร์ด": [900], "หัวเจาะ/บอร์ด": [15], "จำนวนบอร์ด": [2]})
 
 edited_df = st.data_editor(st.session_state.board_list, num_rows="dynamic", use_container_width=True)
 
-# คำนวณรวม
 total_w = sum(edited_df["Watts/บอร์ด"] * edited_df["จำนวนบอร์ด"])
 total_heads = sum(edited_df["หัวเจาะ/บอร์ด"] * edited_df["จำนวนบอร์ด"])
 actual_wl = total_w / vol if vol > 0 else 0
@@ -238,15 +219,16 @@ actual_wl = total_w / vol if vol > 0 else 0
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("💧 ปริมาตรน้ำ", f"{vol:.1f} ลิตร")
 c2.metric("⚡ กำลังไฟรวมของระบบ", f"{total_w:.0f} W")
-c3.metric("🎯 เป้าหมาย W/L ที่ต้องการ", f"{target_wl} W/L")
+c3.metric("🎯 เป้าหมาย W/L (สเปกล้างไว)", f"{target_wl} W/L")
 c4.metric("📊 W/L ของระบบคุณ", f"{actual_wl:.2f} W/L", delta=f"{actual_wl - target_wl:.2f} W/L")
 
+# ลอจิกการประเมินแบบใหม่ ยืดหยุ่นเรื่องเวลา
 if actual_wl >= target_wl:
-    st.success("🟢 พลังงานเพียงพอ: กำลังไฟสามารถทะลวงคราบสารคัดหลั่งในน้ำเปล่าได้ตามมาตรฐาน")
-elif actual_wl >= target_wl * 0.8:
-    st.warning("🟡 พลังงานปานกลาง: อาจต้องเพิ่มเวลาแช่หรือเปิดน้ำร้อนเข้าช่วย")
+    st.success("🟢 ประสิทธิภาพสูง: กำลังไฟแรงพอที่จะล้างน้ำเปล่าจบไวภายใน 3-5 นาที")
+elif actual_wl >= target_wl * 0.70:
+    st.warning("🟡 กำลังไฟระดับมาตรฐาน (1800W): เครื่องสามารถล้างสะอาดได้ แต่อาจต้องยืดเวลาแช่เป็น 10-15 นาที เพื่อชดเชยกำลังไฟ")
 else:
-    st.error("🔴 พลังงานไม่เพียงพอ: คลื่นอัลตราโซนิกอาจอ่อนเกินไป แนะนำให้เพิ่มแผงวงจรหรือลดชิ้นงานลง")
+    st.error("🔴 พลังงานต่ำเกินไป: เสี่ยงที่คลื่นจะเข้าไม่ถึงแกนกลางชิ้นงาน แนะนำให้เพิ่มบอร์ด")
 
 st.divider()
 
@@ -255,11 +237,8 @@ st.divider()
 # ------------------------------------------
 st.header("📍 3. ระยะการติดตั้งหัวทรานสดิวเซอร์ (Mounting Blueprint)")
 heads_per_side = total_heads // 2
-
 measure_mode = st.radio("📏 เลือกการแสดงผลระยะ:", ["กึ่งกลางถึงกึ่งกลาง (Center-to-Center)", "ขอบถึงขอบ (Edge-to-Edge)"], horizontal=True)
 
 b_l, b_r = st.columns(2)
 b_l.pyplot(draw_wall_blueprint(L, H_tank, water_level, False, heads_per_side, measure_mode))
 b_r.pyplot(draw_wall_blueprint(L, H_tank, water_level, True, heads_per_side, measure_mode))
-
-st.markdown("<br><center><small>💎 Custom Engineered for Water-Only Ultrasonic Cleaning 💎</small></center>", unsafe_allow_html=True)
