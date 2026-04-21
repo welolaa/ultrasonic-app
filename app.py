@@ -5,40 +5,44 @@ import math
 import pandas as pd
 
 # ==========================================
-# 1. Page Configuration
+# 1. Page Configuration & Dictionaries
 # ==========================================
 st.set_page_config(page_title="Ultrasonic Design Master", page_icon="💎", layout="wide")
 
+# เพิ่ม Dictionary สำหรับสมการใหม่
+MATERIAL_FACTORS = {
+    "สแตนเลส / โลหะแข็ง": 1.0,   # สะท้อนเสียงได้ดี (Baseline)
+    "ท่อทองแดง / อะลูมิเนียม": 1.05, 
+    "พลาสติก / ยาง": 1.25,        # ดูดซับเสียง (ต้องเพิ่มพลังงาน)
+    "แก้ว / เซรามิก": 0.90        # สะท้อนเสียงดีมาก
+}
+
+CONTAM_FACTORS = {
+    "คราบฝุ่น / คราบเบา": 0.9,
+    "คราบน้ำมันหล่อเย็น / สารคัดหลั่ง": 1.1,  # Baseline เดิม
+    "คราบจาระบีฝังแน่น / สนิม": 1.3
+}
+
 # ==========================================
-# 2. HELPER FUNCTIONS (ปรับจูนสมการให้สมจริงขึ้น)
+# 2. HELPER FUNCTIONS (ปรับจูนสมการให้แม่นยำขึ้น)
 # ==========================================
-def get_base_density(vol_liters, has_heat):
-    if vol_liters <= 50: base_wl = 25.0
-    elif vol_liters <= 100: base_wl = 18.0
-    elif vol_liters <= 150: base_wl = 14.0 # ถังคุณริก 120L ฐานอยู่ที่ 14 W/L
-    else: base_wl = 10.0 
-    
-    # Material Load: ล้างน้ำเปล่าคราบสารคัดหลั่ง 
-    k_mat = 0.85 
-    
-    # Penalty: น้ำเปล่า (ปรับความดุร้ายของสมการลง ให้สะท้อนความจริง)
-    k_penalty = 1.15 # ชดเชยการไม่มีเคมี (+15%)
-    if not has_heat: 
-        k_penalty *= 1.15 # ชดเชยน้ำเย็น (+15%)
-    
-    return round(base_wl * k_mat * k_penalty, 2)
+def get_base_density(effective_vol_L):
+    # ปรับใช้ตาม Effective Volume
+    if effective_vol_L <= 50: return 25.0
+    elif effective_vol_L <= 100: return 20.0
+    elif effective_vol_L <= 150: return 14.0 
+    else: return 10.0 
 
 def calculate_stacking_factor(pieces, rows, load_mode, is_nestable):
     base = 1.0
-    # ปรับลดตัวคูณการบังคลื่นลง เพราะคลื่น 40kHz แทรกซึมได้ดี
-    piece_penalty = 0.05 if is_nestable else 0.15
-    piece_factor = math.log10(pieces) * piece_penalty if pieces > 1 else 0
-    row_factor = (rows - 1) * 0.10 
+    # ใช้ Log10 ตามคำแนะนำของ Claude เพื่อความสมจริงของการบังคลื่น
+    piece_factor = math.log10(max(1, pieces)) * (0.05 if is_nestable else 0.15)
+    row_factor = math.log10(max(1, rows)) * 0.25 
     basket_penalty = 0.20 if load_mode == "ตะแกรง (Basket)" else 0.0
     return round(base + row_factor + piece_factor + basket_penalty, 2)
 
 # ==========================================
-# 3. GRAPHICS FUNCTIONS 
+# 3. GRAPHICS FUNCTIONS (คงเดิมของคุณริก)
 # ==========================================
 def draw_simulation(L, W, H, water_level, part_w, part_h, tube_dia, n_parts, pitch, rows, mode, is_nestable, view="top"):
     fig, ax = plt.subplots(figsize=(10, 5))
@@ -173,10 +177,12 @@ with st.sidebar:
     tube_dia = col_p3.number_input("หนาท่อ (cm)", value=1.0, step=0.1)
     
     st.divider()
-    st.header("🧪 3. สภาพแวดล้อมน้ำ")
+    st.header("🧪 3. สภาพแวดล้อมและวัสดุ (ใหม่!)")
+    material_type = st.selectbox("วัสดุชิ้นงาน", list(MATERIAL_FACTORS.keys()), index=1)
+    contam_type = st.selectbox("ระดับคราบสกปรก", list(CONTAM_FACTORS.keys()), index=1)
     is_nestable = st.checkbox("วางซ้อนเหลื่อมกันได้ (Nestable)", value=True)
     use_heat = st.checkbox("ต้มน้ำร้อน (50-70°C)", value=False)
-    st.info("ℹ️ โหมดน้ำเปล่า 100%")
+    st.info("ℹ️ โหมดล้างน้ำเปล่า: หากไม่ใช้น้ำร้อนระบบจะทดกำลัง +15%")
 
 # ------------------------------------------
 # ส่วนที่ 1: Simulation
@@ -199,36 +205,61 @@ g_side.pyplot(draw_simulation(L, W, H_tank, water_level, part_w, part_h, tube_di
 st.divider()
 
 # ------------------------------------------
-# ส่วนที่ 2: Power Calculation
+# ส่วนที่ 2: Power Calculation (อัปเดตใหม่)
 # ------------------------------------------
-st.header("⚡ 2. คำนวณกำลังงาน (Time vs Power Evaluation)")
-vol = (L * W * water_level) / 1000
-target_p_base = get_base_density(vol, use_heat)
+st.header("⚡ 2. คำนวณกำลังงาน (Frequency & Power Evaluation)")
+
+# 2.1 คำนวณ Effective Volume (หัก Dead Zone 4cm)
+effective_water_level = max(0, water_level - 4.0)
+effective_vol = (L * W * effective_water_level) / 1000
+vol_total = (L * W * water_level) / 1000 # ปริมาตรรวมแสดงให้ User ดู
+
+# 2.2 โหลดค่าตัวแปร
+target_p_base = get_base_density(effective_vol)
+k_mat = MATERIAL_FACTORS[material_type]
+k_contam = CONTAM_FACTORS[contam_type]
+k_heat = 1.0 if use_heat else 1.15
 k_stack = calculate_stacking_factor(n_layers, n_rows, load_mode, is_nestable)
-target_wl = round(target_p_base * k_stack, 2)
 
+# 2.3 คำนวณเป้าหมาย W/L
+target_wl = round(target_p_base * k_mat * k_contam * k_heat * k_stack, 2)
+
+# 2.4 ตารางจำลองบอร์ด (รองรับการใส่ Freq)
 if 'board_list' not in st.session_state:
-    st.session_state.board_list = pd.DataFrame({"Freq (kHz)": [40], "Watts/บอร์ด": [900], "หัวเจาะ/บอร์ด": [15], "จำนวนบอร์ด": [2]})
+    st.session_state.board_list = pd.DataFrame({
+        "Freq (kHz)": [28, 40], # สตาร์ทให้เห็น 2 ความถี่
+        "Watts/บอร์ด": [900, 900], 
+        "หัวเจาะ/บอร์ด": [15, 15], 
+        "จำนวนบอร์ด": [0, 2]
+    })
 
+st.markdown("**กำหนดบอร์ดอัลตราโซนิก (ปรับจำนวนและสเปกบอร์ด)**")
 edited_df = st.data_editor(st.session_state.board_list, num_rows="dynamic", use_container_width=True)
 
+# 2.5 แยกคำนวณตามความถี่
 total_w = sum(edited_df["Watts/บอร์ด"] * edited_df["จำนวนบอร์ด"])
 total_heads = sum(edited_df["หัวเจาะ/บอร์ด"] * edited_df["จำนวนบอร์ด"])
-actual_wl = total_w / vol if vol > 0 else 0
 
+power_28 = edited_df[edited_df["Freq (kHz)"] <= 30].apply(lambda row: row["Watts/บอร์ด"] * row["จำนวนบอร์ด"], axis=1).sum()
+power_40 = edited_df[edited_df["Freq (kHz)"] > 30].apply(lambda row: row["Watts/บอร์ด"] * row["จำนวนบอร์ด"], axis=1).sum()
+
+actual_wl = total_w / effective_vol if effective_vol > 0 else 0
+
+# 2.6 แสดงผล
 c1, c2, c3, c4 = st.columns(4)
-c1.metric("💧 ปริมาตรน้ำ", f"{vol:.1f} ลิตร")
-c2.metric("⚡ กำลังไฟรวมของระบบ", f"{total_w:.0f} W")
-c3.metric("🎯 เป้าหมาย W/L (สเปกล้างไว)", f"{target_wl} W/L")
+c1.metric("💧 ปริมาตรสุทธิ (หัก Dead Zone)", f"{effective_vol:.1f} ลิตร", f"จากรวม {vol_total:.1f}L", delta_color="off")
+c2.metric("⚡ กำลังไฟรวมของระบบ", f"{total_w:.0f} W", f"28k: {power_28}W | 40k: {power_40}W", delta_color="normal")
+c3.metric("🎯 เป้าหมายขั้นต่ำ (W/L)", f"{target_wl} W/L")
 c4.metric("📊 W/L ของระบบคุณ", f"{actual_wl:.2f} W/L", delta=f"{actual_wl - target_wl:.2f} W/L")
 
-# ลอจิกการประเมินแบบใหม่ ยืดหยุ่นเรื่องเวลา
+# ลอจิกการประเมินรอบการทำงาน
 if actual_wl >= target_wl:
-    st.success("🟢 ประสิทธิภาพสูง: กำลังไฟแรงพอที่จะล้างน้ำเปล่าจบไวภายใน 3-5 นาที")
+    st.success("🟢 ประสิทธิภาพสูง: กำลังไฟแรงพอ Cycle time ประมาณ 5-10 นาที/รอบ")
 elif actual_wl >= target_wl * 0.70:
-    st.warning("🟡 กำลังไฟระดับมาตรฐาน (1800W): เครื่องสามารถล้างสะอาดได้ แต่อาจต้องยืดเวลาแช่เป็น 10-15 นาที เพื่อชดเชยกำลังไฟ")
+    estimated_time = round(10 * (target_wl / actual_wl)) # คำนวณเวลาชดเชยคร่าวๆ
+    st.warning(f"🟡 กำลังไฟระดับปานกลาง: สามารถล้างสะอาดได้ แต่อาจต้องยืดเวลาแช่เป็น {estimated_time}-{estimated_time+5} นาที เพื่อชดเชยกำลังไฟ")
 else:
-    st.error("🔴 พลังงานต่ำเกินไป: เสี่ยงที่คลื่นจะเข้าไม่ถึงแกนกลางชิ้นงาน แนะนำให้เพิ่มบอร์ด")
+    st.error("🔴 พลังงานต่ำเกินไป: เสี่ยงที่คลื่นจะเข้าไม่ถึงแกนกลางชิ้นงาน แนะนำให้เพิ่มจำนวนบอร์ด หรือยืดเวลาแช่เกิน 30 นาที")
 
 st.divider()
 
